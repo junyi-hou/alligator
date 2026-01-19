@@ -1,0 +1,6 @@
+.tools/
+.lsp/
+.ipynb_checkpoints/
+.cpcache/
+.clj-kondo/
+.agent-shell/
