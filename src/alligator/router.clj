@@ -45,7 +45,7 @@
     ;; update inflight-requests
     (when (= msg-type :request)
       (let [{:keys [id method]} message]
-        (swap! @outstanding-client-requests assoc id method)))
+        (swap! outstanding-client-requests assoc id method)))
 
     (let [type (case msg-type
                  ;; notification goes to every server
