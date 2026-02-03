@@ -6,11 +6,11 @@
         io.github.tonsky/toml-clj {:mvn/version "0.1.0"}}
 
  :aliases
- {;; uncomment the next line to enable `run` alias
-  ;; :run {:main-opts ["-m" "[NAMESPACE].core"]}
+ {:run {:main-opts ["-m" "alligator.core"]}
   :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
+  :mock-test {:extra-paths ["test"]}
   :build {:extra-paths ["resources"]
           :deps {io.github.clojure/tools.build
                  {:git/tag "v0.9.2" :git/sha "fe6b140"}}

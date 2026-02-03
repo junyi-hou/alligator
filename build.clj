@@ -1,6 +1,7 @@
 (ns build
   (:refer-clojure :exclude [test])
   (:require [clojure.tools.build.api :as b]
+            [clojure.java.shell :refer [sh]]
             [clojure.edn :as edn]
             [clojure.java.io :as io]))
 
@@ -12,10 +13,20 @@
         cmds     (b/java-command
                   {:basis     basis
                    :main      'clojure.main
-                   :main-args ["-m" "cognitect.test-runner" "-d" "tests"]})
+                   :main-args ["-m" "cognitect.test-runner" "-d" "test" "-e" "test/mock/*"]})
         {:keys [exit]} (b/process cmds)]
     (when-not (zero? exit) (throw (ex-info "Tests failed" {}))))
   opts)
+
+(defn mock-test "Run mock test suite-name." [suite]
+  (let [{:keys [exit]} (sh "bash" (format "test/mock/test_runner.sh %s" suite))]
+    (when-not (zero? exit)
+      (throw (ex-info "Tests failed" {})))))
+
+;; (defn mock-test-all "Run mock test suite-name." []
+;;   (let [{:keys [exit]} (sh "bash" "test/mock/test_runner.sh")]
+;;     (when-not (zero? exit)
+;;       (throw (ex-info "Tests failed" {})))))
 
 ;; TODO: better templating below
 ;; (defn- uber-opts [opts]
