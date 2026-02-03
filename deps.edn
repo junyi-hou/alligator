@@ -2,7 +2,8 @@
  :deps {org.clojure/clojure {:mvn/version "1.12.3"}
         clojupyter/clojupyter {:mvn/version "0.4.319"}
         org.clojure/core.async {:mvn/version "1.6.681"}
-        com.github.clojure-lsp/jsonrpc4clj {:mvn/version "1.0.2"}}
+        com.github.clojure-lsp/jsonrpc4clj {:mvn/version "1.0.2"}
+        io.github.tonsky/toml-clj {:mvn/version "0.1.0"}}
 
  :aliases
  {;; uncomment the next line to enable `run` alias
