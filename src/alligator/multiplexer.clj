@@ -12,7 +12,7 @@
 (def ^:private provider-methods
   "A mapping between each server capability and the client requests that it can handles"
   {;; requests
-   :* ["initialize"]
+   :* ["initialize" "shutdown"]
    ;; :textDocumentSync.willSaveWaitUntil ["textDocument/willSaveWaitUntil"]
    :declaration-provider ["textDocument/declaration"]
    :definition-provider ["textDocument/definition"]
@@ -52,6 +52,9 @@
 
 ;; This item holds all running servers
 (defonce enabled-servers (atom []))
+
+;; channel to signal Alligator to exit
+(defonce exit-chan (async/chan))
 
 (defn start-server
   "Start a server subprocess and return a map with channels for communication.

@@ -36,4 +36,5 @@
       (router/start-processing-server-messages! output-chan)
 
       ;; Keep main thread alive
-      (async/<!! (async/chan)))))
+      (async/<!! mux/exit-chan)
+      (System/exit 0))))
