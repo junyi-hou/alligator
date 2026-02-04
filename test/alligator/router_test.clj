@@ -4,7 +4,7 @@
             [alligator.router :as router]
             [alligator.request-states
              :refer [outstanding-client-requests server-request-id-mapping]]
-            [clojure.core :as c]))
+            [alligator.methods :as methods]))
 
 (defn reset-router-state [f]
   ;; Reset outstanding client requests before each test
@@ -14,6 +14,8 @@
   (f))
 
 (use-fixtures :each reset-router-state)
+
+(methods/load-handlers!)
 
 (deftest test-outstanding-client-requests-tracking
   (testing "outstanding-client-requests atom is initialized"
@@ -52,59 +54,76 @@
   (testing "returns :response for response.result messages"
     (let [message {:jsonrpc "2.0" :id 1 :result {}}]
       (is (= :response
-             (#'alligator.router/get-client-message-topic message)))))
+             (#'alligator.router/get-client-message-type message)))))
 
   (testing "returns :error for response.error messages"
     (let [message {:jsonrpc "2.0" :id 1 :error {:code -32603}}]
       (is (= :error
-             (#'alligator.router/get-client-message-topic message)))))
+             (#'alligator.router/get-client-message-type message)))))
 
-  (testing "returns :default for unknown requests"
-    (let [message {:jsonrpc "2.0" :id 100 :method "unknown/method"}]
-      (is (= :default
-             (#'alligator.router/get-client-message-topic message)))))
+  (testing "returns method name for implemented requests"
+    (let [message {:jsonrpc "2.0" :id 101 :method "textDocument/completion"}]
+      (is (= "textDocument/completion"
+             (with-redefs [methods/all-client-methods
+                           (fn [] '("textDocument/completion" :default))]
+               (#'alligator.router/get-client-message-type message))))))
 
   (testing "handles illegal messages"
     (let [message {:jsonrpc "2.0"}
           message2 nil]
       (is (= :illegal-client-message-type
-             (#'alligator.router/get-client-message-topic message)))
+             (#'alligator.router/get-client-message-type message)))
 
       (is (= :illegal-client-message-type
-             (#'alligator.router/get-client-message-topic message2))))))
+             (#'alligator.router/get-client-message-type message2))))))
 
 (deftest test-get-server-message-topic
-  (testing "returns stored method for response.result messages when client request was tracked"
+  (testing "returns implemented method name for server response"
     ;; First simulate a client request to populate outstanding-client-requests
     (let [client-message {:jsonrpc "2.0" :id 1 :method "textDocument/completion"}]
-      (#'alligator.router/get-client-message-topic client-message))
+      (#'alligator.router/get-client-message-type client-message))
 
     ;; Now test server response - should retrieve the method from outstanding-client-requests
     (let [server-message {:message {:jsonrpc "2.0" :id 1 :result {}}}]
       (is (= "textDocument/completion"
-             (with-redefs [clojure.core/methods
-                           (fn [_] {"textDocument/completion" identity :default identity})]
-               (#'alligator.router/get-server-message-topic server-message))))))
+             (with-redefs [methods/all-server-methods
+                           (fn [] '("textDocument/completion" :default))]
+               (#'alligator.router/get-server-message-type server-message))))))
+
+  (testing "returns :default for unimplemented response method"
+    (let [client-message {:jsonrpc "2.0" :id 101 :method "unimplemented/method"}]
+      (#'alligator.router/get-client-message-type client-message))
+
+    (let [message {:message {:jsonrpc "2.0" :id 101 :result {}}}]
+      (is (= :default
+             (#'alligator.router/get-server-message-type message)))))
+
+  (testing "returns implemented method name for server requests"
+    (let [message {:message {:jsonrpc "2.0" :id 101 :method "workspace/applyEdit"}}]
+      (is (= "workspace/applyEdit"
+             (with-redefs [methods/all-server-methods
+                           (fn [] '("workspace/applyEdit" :default))]
+               (#'alligator.router/get-server-message-type message))))))
+
+  (testing "returns :default for unimplemented method name for server requests"
+    (let [message {:message {:jsonrpc "2.0" :id 101 :method "unimplemented/method"}}]
+      (is (= :default
+             (#'alligator.router/get-server-message-type message)))))
 
   (testing "returns :error for response.error messages"
     (let [message {:message {:jsonrpc "2.0" :id 1 :error {:code -32603}}}]
       (is (= :error
-             (#'alligator.router/get-server-message-topic message)))))
-
-  (testing "returns :default for unknown requests"
-    (let [message {:message {:jsonrpc "2.0" :id 2 :method "unknown/method"}}]
-      (is (= :default
-             (#'alligator.router/get-server-message-topic message)))))
+             (#'alligator.router/get-server-message-type message)))))
 
   (testing "handles illegal messages"
     (let [message {:message {:jsonrpc "2.0"}}]
       (is (= :illegal-server-message-type
-             (#'alligator.router/get-server-message-topic message)))))
+             (#'alligator.router/get-server-message-type message)))))
 
   (testing "handles response with unknown id"
     (let [message {:message {:jsonrpc "2.0" :id 999 :result {}}}]
       (is (= :illegal-server-message-type
-             (#'alligator.router/get-server-message-topic message))))))
+             (#'alligator.router/get-server-message-type message))))))
 
 (deftest test-uniquify-server-request-id
   (testing "replaces server request ID with UUID and stores mapping"
@@ -124,6 +143,7 @@
         (is (= 42 (:original-id mapping))))))
 
   (testing "stores multiple mappings correctly"
+    (reset! server-request-id-mapping {})
     (let [server-name "test-server"
           req1 {:jsonrpc "2.0" :id 1 :method "workspace/configuration"}
           req2 {:jsonrpc "2.0" :id 2 :method "workspace/executeCommand"}

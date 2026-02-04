@@ -11,13 +11,10 @@
   implementations for the multi-methods. The load-handlers! function automatically
   discovers and loads all handler modules at startup.
 
-  Example handler implementation:
-    (defmethod process-server-message \"textDocument/hover\"
-      [method msg-chan output-chan]
-      ;; Handle hover requests
-      )"
-  (:require [clojure.java.io :as io]
-            [clojure.string :as str]))
+  See default implementation in `src/alligator/methods/default.clj` of them for example."
+  (:require
+   [clojure.java.io :as io]
+   [clojure.string :as str]))
 
 (defmulti process-server-message
   "Processes server-side LSP messages using method-based dispatch.
@@ -40,6 +37,12 @@
   specific method), process it and write to stdin of the server(s) that are suppose to
   receive it."
   (fn [method _msg-chan] method))
+
+(defn all-client-methods []
+  (keys (clojure.core/methods process-client-message)))
+
+(defn all-server-methods []
+  (keys (clojure.core/methods process-server-message)))
 
 (defn ^:private ns-from-file [file]
   (let [path (.getPath file)

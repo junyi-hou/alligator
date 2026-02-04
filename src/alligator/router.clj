@@ -33,29 +33,31 @@
 
 ;; client -> server message 
 
-(defn ^:private get-client-message-topic
-  "Get method for client messages.
+(defn ^:private get-client-message-type
+  "Get 'type' of a client messages.
 
-   Returns the method name if a specialized handler exists, otherwise :generic.
-   Returns :error if receives an error message."
+   Returns the method name for requests.
+   Returns :notification for notifications
+   Returns :error for error messages
+   For malformed messages, return :illegal-client-message-type"
   [message]
-  (let [msg-type (coercer/input-message-type message)
-        implemented-methods-or-default #(or (some (fn [[k _]] (when (= k %) k)) (clojure.core/methods methods/process-client-message)) :default)]
+  (let [msg-type (coercer/input-message-type message)]
     ;; update inflight-requests
     (when (= msg-type :request)
       (let [{:keys [id method]} message]
         (swap! @outstanding-client-requests assoc id method)))
 
-    (case (coercer/input-message-type message)
-      :notification (:method message)
-      :request (implemented-methods-or-default (:method message))
-      ;; special handling - when client sends a response
-      ;; we just need to route it to the server who sends
-      ;; the request.
-      ;; The server is identified in `server-request-id-mapping`
-      :response.result :response
-      :response.error :error
-      :illegal-client-message-type)))
+    (let [type (case msg-type
+                 ;; notification goes to every server
+                 :notification :notification
+                 ;; request goes to only server who have the capability to handle it
+                 :request (:method message)
+                 ;; when client sends a response we just need to route it to the server who sends
+                 ;; the request.  The server is identified in `server-request-id-mapping`
+                 :response.result :response
+                 :response.error :error
+                 :illegal-client-message-type)]
+      (or (some (fn [m] (when (= type m) m)) (methods/all-client-methods)) :default))))
 
 (defn start-dispatching-client-messages!
   "Automatically register and start handlers for all methods defined in
@@ -66,9 +68,9 @@
    2. Subscribes the channel to `client-message-publisher`.
    3. Calls the handler implementation to start its processing loop."
   [input-chan]
-  (let [client-message-publisher (async/pub input-chan get-client-message-topic)
-        all-handlers (clojure.core/methods methods/process-client-message)]
-    (doseq [[method-name _] all-handlers]
+  (let [client-message-publisher (async/pub input-chan get-client-message-type)
+        all-handlers (methods/all-client-methods)]
+    (doseq [method-name all-handlers]
       (let [msg-chan (async/chan 10)]
         (async/sub client-message-publisher method-name msg-chan)
         (methods/process-client-message method-name msg-chan)))))
@@ -90,24 +92,22 @@
     ;; Return message with new ID
     {:message (assoc message :id new-id) :from server-name}))
 
-(defn ^:private get-server-message-topic
+(defn ^:private get-server-message-type
   "Get method for server messages.
 
    Returns the method name if a specialized handler exists, otherwise :generic.
    Returns :error if receives an error message."
   [{:keys [message]}]
-  (let [msg-type (coercer/input-message-type message)
-        implemented-methods-or-default #(or (some (fn [[k _]] (when (= k %) k)) (clojure.core/methods methods/process-client-message)) :default)]
-
-    (case msg-type
-      :notification (:method message)
-      :request (implemented-methods-or-default (:method message))
-      :response.result (if-let [method (get @outstanding-client-requests (:id message))]
-                         (implemented-methods-or-default method)
-                         ;; if a server respond with id that does not exist
-                         :illegal-server-message-type)
-      :response.error :error
-      :illegal-server-message-type)))
+  (let [type (case (coercer/input-message-type message)
+               :notification (:method message)
+               :request (:method message)
+               :response.result (or
+                                 (get @outstanding-client-requests (:id message))
+                                 ;; if a server respond with id that does not exist
+                                 :illegal-server-message-type)
+               :response.error :error
+               :illegal-server-message-type)]
+    (or (some (fn [m] (when (= type m) m)) (methods/all-server-methods)) :default)))
 
 (defn start-processing-server-messages!
   "Automatically register and start handlers for all methods defined in
@@ -120,8 +120,8 @@
    3. Calls the handler implementation to start its processing loop."
   [output-chan]
   (let [server-output-after-handle-request-id (async/chan 100)
-        server-msg-publisher (async/pub server-output-after-handle-request-id get-server-message-topic)
-        all-handlers (clojure.core/methods methods/process-server-message)]
+        server-msg-publisher (async/pub server-output-after-handle-request-id get-server-message-type)
+        all-handlers (methods/all-server-methods)]
 
     ;; first uniqufy server request id
     (async/go-loop []
@@ -131,7 +131,7 @@
           (async/>! server-output-after-handle-request-id original-msg))
         (recur)))
 
-    (doseq [[method-name _] all-handlers]
+    (doseq [method-name all-handlers]
       (let [msg-chan (async/chan 10)]
         (async/sub server-msg-publisher method-name msg-chan)
         (methods/process-server-message method-name msg-chan output-chan)))))
