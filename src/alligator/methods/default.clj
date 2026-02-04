@@ -2,6 +2,7 @@
   (:require
    [clojure.core.async :as async]
    [alligator.multiplexer :as mux]
+   [alligator.log :as log]
    [alligator.methods :as methods]
    [alligator.request-states :refer [server-request-id-mapping]]))
 
@@ -11,6 +12,7 @@
   [_ msg-chan output-chan]
   (async/go-loop []
     (when-let [{:keys [message]} (async/<! msg-chan)]
+      (log/log "Router -> Client" (format "method: %s" (:method message)))
       (async/>! output-chan message)
       (recur))))
 
@@ -36,6 +38,9 @@
   (async/go-loop []
     (when-let [message (async/<! input-chan)]
       (let [servers (mux/server-accept-method (:method message))]
+        (log/log "Router -> Server" (format "[default] method: %s, routing to: %s"
+                                            (:method message)
+                                            (mapv :name servers)))
         (doseq [server servers]
           (async/>! (:stdin server) message)))
       (recur))))
@@ -48,6 +53,9 @@
   (async/go-loop []
     (when-let [message (async/<! input-chan)]
       (let [servers @mux/enabled-servers]
+        (log/log "Router -> Server" (format "[notification] method: %s, routing to all: %s"
+                                            (:method message)
+                                            (mapv :name servers)))
         (doseq [server servers]
           (async/>! (:stdin server) message)))
       (recur))))
@@ -60,6 +68,9 @@
       (let [remapped-id (:id message)
             {:keys [server-name original-id]} (get @server-request-id-mapping remapped-id)
             server (some #(when (= (:name %) server-name) %) @mux/enabled-servers)]
+        (log/log "Router -> Server" (format "[response] id: %s, routing to: %s"
+                                            remapped-id
+                                            server-name))
         (when (async/>! (:stdin server) (assoc message :id original-id))
           (swap! server-request-id-mapping dissoc remapped-id))))
     (recur)))
@@ -81,4 +92,5 @@
   [_ msg-chan]
   (async/go-loop []
     (when-let [message (async/<! msg-chan)]
+      (log/log "Router" (format "getting illegal client message %s" message))
       (recur))))

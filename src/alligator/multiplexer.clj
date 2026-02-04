@@ -6,6 +6,7 @@
   (:require
    [clojure.java.process :as proc]
    [clojure.core.async :as async]
+   [alligator.log :as log]
    [jsonrpc4clj.io-chan :as io]))
 
 (def ^:private provider-methods
@@ -75,6 +76,10 @@
                                io/input-stream->input-chan)]
          (loop []
            (when-let [message (async/<!! proc-out-chan)]
+
+             ;; log in-coming message
+             (log/log name (str "got message " message))
+
             ;; Add server name to the message before forwarding
              (async/>!! server-output {:from name :message message})
              (recur)))))

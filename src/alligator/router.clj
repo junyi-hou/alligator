@@ -24,6 +24,7 @@
   (:require [clojure.core.async :as async]
             [jsonrpc4clj.coercer :as coercer]
             [alligator.multiplexer :as mux]
+            [alligator.log :as log]
             [alligator.request-states
              :refer [outstanding-client-requests server-request-id-mapping]]
             [alligator.methods :as methods]))
@@ -42,6 +43,7 @@
    For malformed messages, return :illegal-client-message-type"
   [message]
   (let [msg-type (coercer/input-message-type message)]
+    (log/log "Client -> Router" (format "type: %s, method: %s" msg-type (:method message)))
     ;; update inflight-requests
     (when (= msg-type :request)
       (let [{:keys [id method]} message]
@@ -97,17 +99,19 @@
 
    Returns the method name if a specialized handler exists, otherwise :generic.
    Returns :error if receives an error message."
-  [{:keys [message]}]
-  (let [type (case (coercer/input-message-type message)
-               :notification (:method message)
-               :request (:method message)
-               :response.result (or
-                                 (get @outstanding-client-requests (:id message))
-                                 ;; if a server respond with id that does not exist
-                                 :illegal-server-message-type)
-               :response.error :error
-               :illegal-server-message-type)]
-    (or (some (fn [m] (when (= type m) m)) (methods/all-server-methods)) :default)))
+  [{:keys [message] :as msg}]
+  (let [msg-type (coercer/input-message-type message)]
+    (log/log "Server -> Router" (format "from: %s, type: %s, method: %s" (:from msg) msg-type (:method message)))
+    (let [type (case msg-type
+                 :notification (:method message)
+                 :request (:method message)
+                 :response.result (or
+                                   (get @outstanding-client-requests (:id message))
+                                   ;; if a server respond with id that does not exist
+                                   :illegal-server-message-type)
+                 :response.error :error
+                 :illegal-server-message-type)]
+      (or (some (fn [m] (when (= type m) m)) (methods/all-server-methods)) :default))))
 
 (defn start-processing-server-messages!
   "Automatically register and start handlers for all methods defined in
