@@ -1,6 +1,7 @@
 (ns mock.lib
   (:require
-   [clojure.core.async :as async]))
+   [clojure.core.async :as async]
+   [alligator.log :as log]))
 
 (defn request
   "Send request from SENDER to its stdout and expecting to receive a response in the
@@ -8,16 +9,13 @@
    response."
   ([sender method] (request sender method nil 5000))
   ([sender method params] (request sender method params 5000))
-  ([{:keys [stdin stdout stderr next-id name]} method params timeout-ms]
-   (let [msg (cond-> {:jsonrpc "2.0" :id @next-id :method method}
-               params (assoc :params params))]
+  ([{:keys [stdin stdout next-id name]} method params timeout-ms]
+   (let [msg {:jsonrpc "2.0" :id @next-id :method method :params params}]
      (async/>!! stdout msg)
-     (async/>!! stderr (format "[%s] sending %s%s"
-                               name
-                               method
-                               (if params
-                                 (format " with params %s" params)
-                                 "")))
+     (log/log name (format "sending %s with %s"
+                           method
+                           (or params "no params")))
+
      (swap! next-id inc)
 
      ;; now read the server response
@@ -27,11 +25,11 @@
 
 (defn notify
   "Send notification using SENDER's stdout. Log the outgoing notification in the stderr."
-  [{:keys [stdout stderr name]} method params]
+  [{:keys [stdout name]} method params]
   (let [msg {:jsonrpc "2.0" :method method :params params}]
 
     (async/>!! stdout msg)
-    (async/>!! stderr (format "[%s] sending %s with params %s" name method params))))
+    (log/log name (format "sending %s with params %s" method params))))
 
 (defn receive-notification
   "Read the top of the SENDER's stdin queue, and return the result."
@@ -43,25 +41,24 @@
 
 (defn respond
   "Write a response to SENDER's stdout given an incoming ID. Log the response result in stderr."
-  [{:keys [stdout stderr name]} request result]
+  [{:keys [stdout name]} request result]
   (let [id (:id request)
         msg {:jsonrpc "2.0" :id id :result result}]
     (async/>!! stdout msg)
-    (async/>!! stderr (format "[%s] responding back to %s with result %s" name id result))))
+    (log/log name (format "responding back to %s with result %s" id result))))
 
-(defn error [{:keys [stdout stderr name]} request error]
+(defn error [{:keys [stdout name]} request error]
   (let [id (:id request)
         msg {:jsonrpc "2.0" :id id :error error}]
-    (async/>!! stderr (format "[%s] errors out with %s" name error))
+    (log/log name (format "errors out with %s" error))
     (async/>!! stdout msg)))
 
 (defn close
   "Close all channels of SENDER and exit the script."
   ([sender] (close sender 0))
-  ([{:keys [stdout stderr stdin]} code]
+  ([{:keys [stdout stdin]} code]
    (async/close! stdout)
    (async/close! stdin)
-   (async/close! stderr)
    ;; Wait briefly to ensure channel close operations complete
    (shutdown-agents)
    (System/exit code)))

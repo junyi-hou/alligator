@@ -5,7 +5,8 @@
    This server implements basic LSP protocol responses for testing."
   (:require [mock.lib :as lib]
             [jsonrpc4clj.io-chan :as io]
-            [clojure.core.async :as async])
+            [clojure.core.async :as async]
+            [alligator.log :as log])
   (:gen-class))
 
 (def server-capabilities {:completion-provider {:trigger-characters ["."]}})
@@ -52,13 +53,12 @@
                  {:code -32601
                   :message (str "Method not found: " method)})
       ;; It's a notification, just log it
-      (async/>!! (:stderr server)
-                 (format "[%s] receive unsupported notification %s" (:name server) method)))))
+      (log/log (:name server)
+               (format "receive notification %s" method)))))
 
 (defn -main [server-name & enabled-capabilities-keys]
   (let [server {:stdin (io/input-stream->input-chan System/in)
                 :stdout (io/output-stream->output-chan System/out)
-                :stderr (io/output-stream->output-chan System/err)
                 :next-id (atom 1)
                 :name server-name}]
 

@@ -62,7 +62,6 @@
 (defn -main [& _]
   (let [client {:stdin (io/input-stream->input-chan System/in)
                 :stdout (io/output-stream->output-chan System/out)
-                :stderr (io/output-stream->output-chan System/err)
                 :next-id (atom 1)
                 :name "CLIENT"}]
     (run-test client)
