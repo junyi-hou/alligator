@@ -1,6 +1,6 @@
 (ns mock.basic.server
   "A runnable mock LSP server for integration testing.
-   Run with: clj -M:mock-test -m mock.basic.server [server-name]
+   Run with: clj -M:test -m mock.basic.server [server-name]
 
    This server implements basic LSP protocol responses for testing."
   (:require [mock.lib :as lib]

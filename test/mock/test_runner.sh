@@ -36,6 +36,6 @@ mkfifo "$FIFO"
 trap "rm -f '$FIFO'" EXIT INT TERM
 
 # Run tests
-clj -M:mock-test -m "$CLIENT" < "$FIFO" | clj -M -m alligator.core "$CONFIG_FILE" > "$FIFO"
+clj -M:test -m "$CLIENT" < "$FIFO" | clj -M -m alligator.core "$CONFIG_FILE" > "$FIFO"
 
 exit 0

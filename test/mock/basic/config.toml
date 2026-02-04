@@ -1,5 +1,5 @@
 [s1]
-command = ["clj", "-M:mock-test", "-m", "mock.basic.server", "s1"]
+command = ["clj", "-M:test", "-m", "mock.basic.server", "s1"]
 capabilities = []
 is_default = true
 

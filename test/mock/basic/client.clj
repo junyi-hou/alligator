@@ -1,5 +1,5 @@
 (ns mock.basic.client
-  "Run with clj -M:mock-test -m mock.basic.client"
+  "Run with clj -M:test -m mock.basic.client"
   (:require
    [clojure.core.async :as async]
    [jsonrpc4clj.io-chan :as io]
