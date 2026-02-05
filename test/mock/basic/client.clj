@@ -63,6 +63,8 @@
   (let [client {:stdin (io/input-stream->input-chan System/in)
                 :stdout (io/output-stream->output-chan System/out)
                 :next-id (atom 1)
+                :failures (atom 0)
                 :name "CLIENT"}]
     (run-test client)
-    (lib/close client)))
+    (let [exit-code (if (pos? @(:failures client)) 1 0)]
+      (lib/close client exit-code))))

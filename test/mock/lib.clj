@@ -56,17 +56,19 @@
 (defn close
   "Close all channels of SENDER and exit the script."
   ([sender] (close sender 0))
-  ([{:keys [stdout stdin]} code]
+  ([{:keys [stdout stdin name]} code]
    (async/close! stdout)
    (async/close! stdin)
    ;; Wait briefly to ensure channel close operations complete
    (shutdown-agents)
+   (log/log name (format "exiting with code %s" code))
    (System/exit code)))
 
 (defn validate
-  "Check if CONDITION is true, if not log to stderr and exit with code 1.
+  "Check if CONDITION is true, if not log to stderr and either exit with code 1
+   or increment failures count if sender tracks it.
    Optionally provide MESSAGE for context when the validation fails.
-   Returns true if condition passes, exits if it fails."
+   Returns true if condition passes, false if it fails (and doesn't exit)."
   ([sender condition]
    (validate sender condition "Validation failed"))
   ([sender condition message]
@@ -76,4 +78,12 @@
        (binding [*out* *err*]
          (println "[VALIDATION ERROR]" message)
          (flush))
-       (close sender 1)))))
+
+       (if-let [failures (:failures sender)]
+         (do
+           (swap! failures inc)
+           false)
+         (do
+           ;; send shutdown to server
+           (request sender "shutdown")
+           (close sender 1)))))))
