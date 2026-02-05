@@ -23,8 +23,8 @@
         actual (get-in init-response [:result :capabilities])
         expected server-capabilities]
 
-    (lib/validate client (= server-name "s1")
-                  (format "Expected `s1`, get %s" server-name))
+    (lib/validate client (= server-name "Alligator (s1)")
+                  (format "Expected `Alligator (s1)`, get %s" server-name))
     (lib/validate client (= actual expected)
                   (format "Expected `%s`, get %s" expected actual))
     (lib/notify client "initialized" {}))
