@@ -22,18 +22,17 @@
       (reset! mux/enabled-servers [server1 server2])
 
       (methods/process-server-message "initialize" in-chan out-chan)
-      (async/go
-        (async/>! in-chan {:from "s1"
-                           :message {:jsonrpc "2.0"
-                                     :id 1
-                                     :result {:capabilities {:completion-provider {:resolve-provider true}
-                                                             :execute-command-provider {:commands ["move-to-let"]}
-                                                             :code-action-provider {:code-action-kinds ["quickfix"]}}}}})
-        (async/>! in-chan {:from "s2"
-                           :message {:jsonrpc "2.0"
-                                     :id 1
-                                     :result {:capabilities {:hover-provider true
-                                                             :code-action-provider true}}}}))
+      (async/>!! in-chan {:from "s1"
+                          :message {:jsonrpc "2.0"
+                                    :id 1
+                                    :result {:capabilities {:completion-provider {:resolve-provider true}
+                                                            :execute-command-provider {:commands ["move-to-let"]}
+                                                            :code-action-provider {:code-action-kinds ["quickfix"]}}}}})
+      (async/>!! in-chan {:from "s2"
+                          :message {:jsonrpc "2.0"
+                                    :id 1
+                                    :result {:capabilities {:hover-provider true
+                                                            :code-action-provider true}}}})
 
       (let [response (async/<!! out-chan)]
         (is (= "2.0" (:jsonrpc response)))

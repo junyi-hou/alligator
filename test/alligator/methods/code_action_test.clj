@@ -33,28 +33,24 @@
           server2 {:name "s2" :command "c2" :is-default false :capabilities [:code-action-provider]}]
       (reset! mux/enabled-servers [server1 server2])
 
-      ;; open code action channel
       (methods/process-server-message "textDocument/codeAction" in-chan out-chan)
 
-      (async/go
-        (async/>! in-chan {:from "s1"
-                           :message {:jsonrpc "2.0"
-                                     :id 100
-                                     :result [{:title "Foo" :kind "quickfix" :edit "some-file"}
-                                              {:title "Baz" :command "baz" :arguments ["1" "2"]}]}})
-        (async/>! in-chan {:from "s2"
-                           :message {:jsonrpc "2.0"
-                                     :id 100
-                                     :result [{:title "Bar" :kind "refactor.inline" :command {:title "bar command" :command "bar"} :data {:key "value"}}]}})
-        (let [response (async/<!! out-chan)]
-          (is (= 100 (:id response)))
-          (is (= (set (:result response))
-                 (set [{:title "Foo" :kind "quickfix" :edit "some-file" :data {:alligator-source "s1"}}
-                       {:title "Bar" :kind "refactor.inline" :command {:title "bar command" :command "bar"} :data {:key "value" :alligator-source "s2"}}
-                       {:title "Baz" :command "baz" :arguments ["1" "2"]}]))))))))
+      (async/>!! in-chan {:from "s1"
+                          :message {:jsonrpc "2.0"
+                                    :id 100
+                                    :result [{:title "Foo" :kind "quickfix" :edit "some-file"}
+                                             {:title "Baz" :command "baz" :arguments ["1" "2"]}]}})
+      (async/>!! in-chan {:from "s2"
+                          :message {:jsonrpc "2.0"
+                                    :id 100
+                                    :result [{:title "Bar" :kind "refactor.inline" :command {:title "bar command" :command "bar"} :data {:key "value"}}]}})
+      (let [response (async/<!! out-chan)]
+        (is (= 100 (:id response)))
+        (is (= (set (:result response))
+               (set [{:title "Foo" :kind "quickfix" :edit "some-file" :data {:alligator-source "s1"}}
+                     {:title "Bar" :kind "refactor.inline" :command {:title "bar command" :command "bar"} :data {:key "value" :alligator-source "s2"}}
+                     {:title "Baz" :command "baz" :arguments ["1" "2"]}])))))))
 
-;; (deftest test-process-client-message-resolve
-;;   (testing ""))
 (deftest test-process-client-message-resolve
   (testing "Relay codeAction/resolve request to the correct server"
     (let [server1-in-chan (async/chan 10)
