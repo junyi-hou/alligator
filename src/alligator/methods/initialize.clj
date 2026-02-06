@@ -7,8 +7,7 @@
    [clojure.edn :as edn]
    [alligator.multiplexer :as mux]
    [alligator.methods :as methods]
-   ;; [alligator.methods.execute-command :as exec-commands]
-   ))
+   [alligator.methods.execute-command :as exec-commands]))
 
 (defmulti ^:private do-merge
   "Function that merge a capability key."
@@ -109,8 +108,8 @@
     (async/go-loop [responses []]
       (when-let [msg (async/<! in-chan)]
         ;; ;; update accept-command-list
-        ;; (when-let [accepted-commands (get-in msg [:message :result :capabilities :execute-command-provider :commands])]
-        ;;   (swap! exec-commands/server-commands-map assoc (:from msg) accepted-commands))
+        (when-let [accepted-commands (get-in msg [:message :result :capabilities :execute-command-provider :commands])]
+          (swap! exec-commands/server-commands-map assoc (:from msg) accepted-commands))
 
         ;; update response list
         (let [new-responses (conj responses msg)]

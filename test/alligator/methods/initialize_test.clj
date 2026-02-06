@@ -4,10 +4,12 @@
    [clojure.core.async :as async]
    [alligator.methods.initialize :as init]
    [alligator.methods :as methods]
-   [alligator.multiplexer :as mux]))
+   [alligator.multiplexer :as mux]
+   [alligator.methods.execute-command :as exec-commands]))
 
 (defn reset-states [f]
   (reset! mux/enabled-servers [])
+  (reset! exec-commands/server-commands-map {})
   (f))
 
 (use-fixtures :each reset-states)
@@ -18,7 +20,7 @@
   (testing "process-server-message 'initialize' merges responses from multiple servers"
     (let [in-chan (async/chan 10)
           out-chan (async/chan 10)
-          server1 {:name "s1" :command "c1" :is-default true :capabilities [:*]}
+          server1 {:name "s1" :command "c1" :is-default true :capabilities nil}
           server2 {:name "s2" :command "c2" :is-default false :capabilities [:hover-provider :code-action-provider]}]
 
       (reset! mux/enabled-servers [server1 server2])
@@ -29,6 +31,7 @@
                            :message {:jsonrpc "2.0"
                                      :id 1
                                      :result {:capabilities {:completion-provider {:resolve-provider true}
+                                                             :execute-command-provider {:commands ["move-to-let"]}
                                                              :code-action-provider {:code-action-kinds ["quickfix"]}}}}})
         (async/>! in-chan {:from "s2"
                            :message {:jsonrpc "2.0"
@@ -39,9 +42,14 @@
       (let [response (async/<!! out-chan)]
         (is (= "2.0" (:jsonrpc response)))
         (is (= 1 (:id response)))
-        (is (= {:completion-provider {:resolve-provider true} :hover-provider true :code-action-provider {:code-action-kinds ["quickfix"]}}
+        (is (= {:completion-provider {:resolve-provider true}
+                :hover-provider true
+                :code-action-provider {:code-action-kinds ["quickfix"]}
+                :execute-command-provider {:commands ["move-to-let"]}}
                (get-in response [:result :capabilities])))
-        (is (re-find #"Alligator \(s1\+s2\)" (get-in response [:result :server-info :name])))))))
+        (is (= "Alligator (s1+s2)" (get-in response [:result :server-info :name])))
+        ;; check execute-command is registered
+        (is (= @exec-commands/server-commands-map {"s1" ["move-to-let"]}))))))
 
 (deftest test-merge-initialize-response
   (testing "Merge booleans using OR logic"
