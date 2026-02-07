@@ -48,19 +48,16 @@
 ;; client 
 
 ;; client notifications go to every server
-(defn to-all-servers [message]
-  (let [servers @mux/enabled-servers]
-    (log/log "Router -> Server" (format "[notification] method: %s, routing to all: %s"
-                                        (:method message)
-                                        (mapv :name servers)))
-    (doseq [server servers]
-      (async/>! (:stdin server) message))))
-
 (defmethod methods/process-client-message :notification
   [_ input-chan]
   (async/go-loop []
     (when-let [message (async/<! input-chan)]
-      (to-all-servers message)
+      (let [servers @mux/enabled-servers]
+        (log/log "Router -> Server" (format "[notification] method: %s, routing to all: %s"
+                                            (:method message)
+                                            (mapv :name servers)))
+        (doseq [server servers]
+          (async/>! (:stdin server) message)))
       (recur))))
 
 ;; client responses go to only the server who sends the requests

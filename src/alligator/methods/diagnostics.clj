@@ -2,8 +2,8 @@
   "Merge publishDiagnostics returns from the servers."
   (:require
    [alligator.methods :as methods]
-   [alligator.methods.default :as default-methods]
-   [clojure.core.async :as async]))
+   [clojure.core.async :as async]
+   [alligator.multiplexer :as mux]))
 
 ;; Cache published diagnostics from all servers.
 ;; Structure: {uri {server-name {:diagnostics [...] :version n}}}
@@ -45,7 +45,8 @@
   [_ client-message-chan]
   (async/go-loop []
     (when-let [message (async/<! client-message-chan)]
-      (default-methods/to-all-servers message)
+      (doseq [server @mux/enabled-servers]
+        (async/>! (:stdin server) message))
       (let [uri (get-in message [:params :textDocument :uri])]
         (swap! diagnostics-cache dissoc uri)))
     (recur)))
