@@ -2,15 +2,11 @@
   (:require
    [clojure.test :refer [deftest is testing use-fixtures]]
    [clojure.core.async :as async]
-   [alligator.multiplexer :as multiplexer])
+   [alligator.multiplexer :as multiplexer]
+   [alligator.test-utils :refer [reset-all-states]])
   (:import [clojure.core.async.impl.channels ManyToManyChannel]))
 
-(defn reset-servers-fixture [f]
-  ;; Clear enabled-servers before each test
-  (reset! multiplexer/enabled-servers [])
-  (f))
-
-(use-fixtures :each reset-servers-fixture)
+(use-fixtures :each reset-all-states)
 
 (deftest test-start-server
   (let [srv (multiplexer/start-server "test-server"

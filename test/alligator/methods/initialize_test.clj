@@ -5,14 +5,10 @@
    [alligator.methods.initialize :as init]
    [alligator.methods :as methods]
    [alligator.multiplexer :as mux]
-   [alligator.methods.execute-command :as exec-commands]))
+   [alligator.methods.execute-command :as exec-commands]
+   [alligator.test-utils :refer [reset-all-states]]))
 
-(defn reset-states [f]
-  (reset! mux/enabled-servers [])
-  (reset! exec-commands/server-commands-map {})
-  (f))
-
-(use-fixtures :each reset-states)
+(use-fixtures :each reset-all-states)
 
 (methods/load-handlers!)
 

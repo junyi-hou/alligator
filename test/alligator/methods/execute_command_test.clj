@@ -4,14 +4,10 @@
    [clojure.core.async :as async]
    [alligator.methods.execute-command :as exec-cmd]
    [alligator.methods :as methods]
-   [alligator.multiplexer :as mux]))
+   [alligator.multiplexer :as mux]
+   [alligator.test-utils :refer [reset-all-states]]))
 
-(defn reset-states [f]
-  (reset! mux/enabled-servers [])
-  (reset! exec-cmd/server-commands-map {})
-  (f))
-
-(use-fixtures :each reset-states)
+(use-fixtures :each reset-all-states)
 
 (methods/load-handlers!)
 

@@ -4,16 +4,10 @@
             [alligator.router :as router]
             [alligator.request-states
              :refer [outstanding-client-requests server-request-id-mapping]]
-            [alligator.methods :as methods]))
+            [alligator.methods :as methods]
+            [alligator.test-utils :refer [reset-all-states]]))
 
-(defn reset-router-state [f]
-  ;; Reset outstanding client requests before each test
-  (reset! outstanding-client-requests {})
-  ;; Reset server request ID mapping before each test
-  (reset! server-request-id-mapping {})
-  (f))
-
-(use-fixtures :each reset-router-state)
+(use-fixtures :each reset-all-states)
 
 (methods/load-handlers!)
 

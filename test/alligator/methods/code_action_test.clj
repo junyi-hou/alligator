@@ -2,17 +2,12 @@
   (:require
    [alligator.methods :as methods]
    [alligator.methods.code-action :as code-action]
-   [alligator.methods.execute-command :as exec-commands]
    [alligator.multiplexer :as mux]
    [clojure.core.async :as async]
-   [clojure.test :refer [deftest testing is use-fixtures]]))
+   [clojure.test :refer [deftest testing is use-fixtures]]
+   [alligator.test-utils :refer [reset-all-states]]))
 
-(defn reset-state [f]
-  (reset! mux/enabled-servers [])
-  (reset! exec-commands/server-commands-map {})
-  (f))
-
-(use-fixtures :each reset-state)
+(use-fixtures :each reset-all-states)
 
 (methods/load-handlers!)
 

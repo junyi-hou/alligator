@@ -1,15 +1,10 @@
 (ns alligator.methods-test
   (:require [clojure.test :refer [deftest testing is use-fixtures]]
             [alligator.methods :as methods]
-            [alligator.multiplexer :as mux]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [alligator.test-utils :refer [reset-all-states]]))
 
-(defn reset-servers-fixture [f]
-  ;; Clear enabled-servers before each test
-  (reset! mux/enabled-servers [])
-  (f))
-
-(use-fixtures :each reset-servers-fixture)
+(use-fixtures :each reset-all-states)
 
 (deftest test-ns-from-file
   (testing "converts file path to namespace symbol"
