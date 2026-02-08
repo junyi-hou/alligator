@@ -32,6 +32,8 @@
       (log/log "Router" (format "getting illegal server message %s" message))
       (recur))))
 
+;; client 
+
 ;; unspecified client request goes to server that can handle it
 (defmethod methods/process-client-message :default
   [_ input-chan]
@@ -44,8 +46,6 @@
         (doseq [server servers]
           (async/>! (:stdin server) message)))
       (recur))))
-
-;; client 
 
 ;; client notifications go to every server
 (defmethod methods/process-client-message :notification
