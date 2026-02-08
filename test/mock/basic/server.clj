@@ -3,7 +3,7 @@
    Run with: clj -M:test -m mock.basic.server [server-name]
 
    This server implements basic LSP protocol responses for testing."
-  (:require [mock.lib :as lib]
+  (:require [mock.utils :as utils]
             [jsonrpc4clj.io-chan :as io]
             [clojure.core.async :as async]
             [alligator.log :as log])
@@ -25,46 +25,33 @@
 
 (defmethod handle-message "initialize"
   [server request]
-  (lib/respond server request {:capabilities server-capabilities
-                               :server-info {:name (:name server)
-                                             :version "0.1.0-test"}}))
-
-(defmethod handle-message "initialized"
-  [server _request]
-  (lib/notify server "textDocument/publishDiagnostics"
-              {:uri "file:///test.clj"
-               :diagnostics diagnostics-item}))
-
-(defmethod handle-message "shutdown"
-  [server request]
-  (lib/respond server request nil)
-  (lib/close server))
+  (utils/respond server (:id request) {:capabilities server-capabilities
+                                       :server-info {:name (:name server)
+                                                     :version "0.1.0-test"}}))
 
 (defmethod handle-message "textDocument/completion"
   [server request]
-  (lib/respond server request completion-items))
+  (utils/respond server (:id request) completion-items))
 
 (defmethod handle-message :default
-  [server request]
-  (let [method (:method request)
-        id (:id request)]
-    (when id
-      (lib/error server request
-                 {:code -32601
-                  :message (str "Method not found: " method)})
-      ;; It's a notification, just log it
-      (log/log (:name server)
-               (format "receive notification %s" method)))))
+  [{:keys [name]} request]
+  (log/log name (str "received unsupported request " (:method request))))
 
-(defn -main [server-name & enabled-capabilities-keys]
+(defmethod handle-message "shutdown"
+  [server request]
+  (utils/respond server (:id request))
+
+  ;; close
+  (async/close! (:stdin server)))
+
+(defn -main [server-name]
   (let [server {:stdin (io/input-stream->input-chan System/in)
                 :stdout (io/output-stream->output-chan System/out)
+                :request-handlers handle-message
                 :next-id (atom 1)
-                :name server-name}]
-
-    ;; start event loop
-    (loop []
-      (let [message (async/<!! (:stdin server))]
-        (handle-message server message)
-        (when-not (= (:method message) "shutdown")
-          (recur))))))
+                :name server-name}
+        [_ loop-chan] (utils/start-endpoint server)]
+    (utils/notify server "textDocument/publishDiagnostics"
+                  {:uri "file:///test.clj"
+                   :diagnostics diagnostics-item})
+    (async/<!! loop-chan)))
