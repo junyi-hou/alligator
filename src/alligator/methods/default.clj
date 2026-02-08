@@ -12,7 +12,7 @@
   [_ msg-chan output-chan]
   (async/go-loop []
     (when-let [{:keys [message]} (async/<! msg-chan)]
-      (log/log "Router -> Client" (format "method: %s" (:method message)))
+      ;; (log/log "Router -> Client" (format "method: %s" (:method message)))
       (async/>! output-chan message)
       (recur))))
 
@@ -29,7 +29,7 @@
   [_ msg-chan _]
   (async/go-loop []
     (when-let [{:keys [message]} (async/<! msg-chan)]
-      (log/log "Router" (format "getting illegal server message %s" message))
+      ;; (log/log "Router" (format "getting illegal server message %s" message))
       (recur))))
 
 ;; client 
@@ -40,9 +40,9 @@
   (async/go-loop []
     (when-let [message (async/<! input-chan)]
       (let [servers (mux/server-accept-method (:method message))]
-        (log/log "Router -> Server" (format "[default] method: %s, routing to: %s"
-                                            (:method message)
-                                            (mapv :name servers)))
+        ;; (log/log "Router -> Server" (format "[default] method: %s, routing to: %s"
+        ;;                                     (:method message)
+        ;;                                     (mapv :name servers)))
         (doseq [server servers]
           (async/>! (:stdin server) message)))
       (recur))))
@@ -53,9 +53,9 @@
   (async/go-loop []
     (when-let [message (async/<! input-chan)]
       (let [servers @mux/enabled-servers]
-        (log/log "Router -> Server" (format "[notification] method: %s, routing to all: %s"
-                                            (:method message)
-                                            (mapv :name servers)))
+        ;; (log/log "Router -> Server" (format "[notification] method: %s, routing to all: %s"
+        ;;                                     (:method message)
+        ;;                                     (mapv :name servers)))
         (doseq [server servers]
           (async/>! (:stdin server) message)))
       (recur))))
@@ -68,9 +68,9 @@
       (let [remapped-id (:id message)
             {:keys [server-name original-id]} (get @server-request-id-mapping remapped-id)
             server (some #(when (= (:name %) server-name) %) @mux/enabled-servers)]
-        (log/log "Router -> Server" (format "[response] id: %s, routing to: %s"
-                                            remapped-id
-                                            server-name))
+        ;; (log/log "Router -> Server" (format "[response] id: %s, routing to: %s"
+        ;;                                     remapped-id
+        ;;                                     server-name))
         (when (async/>! (:stdin server) (assoc message :id original-id))
           (swap! server-request-id-mapping dissoc remapped-id))))
     (recur)))
