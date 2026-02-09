@@ -9,6 +9,19 @@
 ;; Structure: {uri {server-name {:diagnostics [...] :version n}}}
 (defonce diagnostics-cache (atom {}))
 
+;; TODO:
+;; 1/ we should expose version
+(defn ^:private join-diagnostics [uri]
+  (let [new-diagnostics (->> (get @diagnostics-cache uri)
+                             vals
+                             (map :diagnostics)
+                             (keep identity)
+                             (apply concat)
+                             vec)]
+    {:jsonrpc "2.0"
+     :method "textDocument/publishDiagnostics"
+     :params {:diagnostics new-diagnostics :uri uri}}))
+
 (defn ^:private process-server-diagnostics
   "Process a single diagnostic message from a server and return the merged result."
   [msg]
@@ -18,26 +31,17 @@
     (if version
       ;; if version is available, update the cache only if it is newer
       (when (> version (get-in @diagnostics-cache [uri server :version] -1))
-        (swap! diagnostics-cache assoc-in [uri server] params))
+        (swap! diagnostics-cache assoc-in [uri server] params)
+        (join-diagnostics uri))
       ;; if no version, always update
-      (swap! diagnostics-cache assoc-in [uri server] params))
-
-    ;; return merged notification
-    (let [new-diagnostics (->> (get @diagnostics-cache uri)
-                               vals
-                               (map :diagnostics)
-                               (keep identity)
-                               (apply concat)
-                               vec)]
-      {:jsonrpc "2.0"
-       :method "textDocument/publishDiagnostics"
-       :params {:diagnostics new-diagnostics :uri uri}})))
+      (do (swap! diagnostics-cache assoc-in [uri server] params)
+          (join-diagnostics uri)))))
 
 (defmethod methods/process-server-message "textDocument/publishDiagnostics"
   [_ diagnostics-chan output-chan]
   (async/go-loop []
     (when-let [msg (async/<! diagnostics-chan)]
-      (let [result (process-server-diagnostics msg)]
+      (when-let [result (process-server-diagnostics msg)]
         (async/>! output-chan result))
       (recur))))
 
