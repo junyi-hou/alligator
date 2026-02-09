@@ -2,17 +2,16 @@
   (:require
    [jsonrpc4clj.io-chan :as io]
    [mock.utils :as utils]
-   [mock.basic.server :refer [completion-items diagnostics-item]]
    [clojure.core.async :as async])
   (:gen-class))
 
 (def capabilities {:diagnostic-provider true})
 
-(def new-diagnostics [{:range {:start {:line 0 :character 0} :end {:line 0 :character 5}} :message "new error"}])
+(def new-diagnostics {:range {:start {:line 0 :character 0} :end {:line 0 :character 5}} :message "new error from s1"})
 
-(def old-diagnostics [{:range {:start {:line 0 :character 0} :end {:line 0 :character 5}} :message "old error"}])
+(def old-diagnostics {:range {:start {:line 0 :character 0} :end {:line 0 :character 5}} :message "old error from s1"})
 
-(defmulti ^:private handle-request (fn [_server request] (:method request)))
+(defmulti handle-request (fn [_server request] (:method request)))
 
 (defmethod handle-request "initialize"
   [server _]
@@ -35,13 +34,13 @@
         ;; and check that the client receives only the newer one
         (do (utils/notify server "textDocument/publishDiagnostics"
                           {:uri (get-in msg [:params :text-document :uri])
-                           :diagnostics new-diagnostics
+                           :diagnostics [new-diagnostics]
                            :version 2})
 
             (Thread/sleep 500)
             (utils/notify server "textDocument/publishDiagnostics"
                           {:uri (get-in msg [:params :text-document :uri])
-                           :diagnostics old-diagnostics
+                           :diagnostics [old-diagnostics]
                            :version 1})
             ;; return :done
             :done)
