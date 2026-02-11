@@ -1,7 +1,7 @@
 (ns alligator.methods.execute-command
   (:require
    [clojure.core.async :as async]
-   [alligator.log :as log]
+   [taoensso.timbre :refer [warn]]
    [alligator.methods :as methods]
    [alligator.multiplexer :as mux]))
 
@@ -31,10 +31,10 @@
         (cond
           (= n-servers 0) (do
                             (async/>! mux/server-output (error-response (:id message) params))
-                            (log/log "Router" (format "No server is capable of running %s" command-to-run)))
+                            (warn (format "[Router] No server is capable of running %s" command-to-run)))
           (= n-servers 1) (let [server (some #(when (= (:name %) (first servers)) %) @mux/enabled-servers)]
                             (async/>! (:stdin server) message))
           :else (do
                   (async/>! mux/server-output (error-response (:id message) params))
-                  (log/log "Router" (format "More than 1 server is capable of running %s" command-to-run))))))
+                  (warn (format "[Router] More than 1 server is capable of running %s" command-to-run))))))
     (recur)))

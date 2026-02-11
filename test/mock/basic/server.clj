@@ -5,8 +5,7 @@
    This server implements basic LSP protocol responses for testing."
   (:require [mock.utils :as utils]
             [jsonrpc4clj.io-chan :as io]
-            [clojure.core.async :as async]
-            [alligator.log :as log])
+            [clojure.core.async :as async])
   (:gen-class))
 
 (def server-capabilities {:completion-provider {:trigger-characters ["."]}})
@@ -35,7 +34,7 @@
 
 (defmethod handle-message :default
   [{:keys [name]} request]
-  (log/log name (str "received unsupported request " (:method request))))
+  (utils/log name (str "received unsupported request " (:method request))))
 
 (defmethod handle-message "shutdown"
   [server request]

@@ -47,10 +47,10 @@ We use `clojure-lsp` for linting and formatting.
 
 ```clojure
 (ns alligator.example
-  (:require [alligator.log :as log]
-            [alligator.multiplexer :as mux]
-            [clojure.core.async :as async]
-            [clojure.java.io :as io]))
+   (:require [alligator.multiplexer :as mux]
+             [clojure.core.async :as async]
+             [clojure.java.io :as io]
+             [taoensso.timbre :as timbre]))
 ```
 
 ### Architecture & Patterns
@@ -70,7 +70,7 @@ We use `clojure-lsp` for linting and formatting.
 ###  Error Handling
 - Use `try/catch` for localized error handling.
 - Use `ex-info` and `ex-data` to provide context in exceptions.
-- Log errors using the `alligator.log` namespace.
+- Log errors using the `clojure.tools.logging` namespace.
 
 ### Types and Coercion
 - We use `jsonrpc4clj` for JSON-RPC message handling.

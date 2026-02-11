@@ -5,6 +5,7 @@
    [clojure.tools.cli :as cli]
    [toml-clj.core :as toml]
    [jsonrpc4clj.io-chan :as io-chan]
+   [taoensso.timbre :as timbre]
    [alligator.multiplexer :as mux]
    [alligator.methods :refer [load-handlers!]]
    [alligator.states :refer [alligator-cli-options server-options]]
@@ -30,18 +31,32 @@
     (with-open [rdr (io/reader (:config options))]
       (toml/read rdr))))
 
-(defn ^:private start-servers [arguments]
-  (reduce-kv (fn [out k v] (conj out (mux/start-server k
-                                                       (get v "command")
-                                                       (map keyword (get v "capabilities"))
-                                                       (get v "is_default"))))
+(defn ^:private start-servers [server-config]
+  (reduce-kv (fn [out k v]
+               (conj out (mux/start-server k
+                                           (get v "command")
+                                           (map keyword (get v "capabilities"))
+                                           (get v "is_default"))))
              []
-             arguments))
+             server-config))
+
+(defn ^:private setup-logger! [{:keys [debug]}]
+  ;; use only stderr for logging
+  (timbre/merge-config!
+   {:min-level (if debug :debug :warn)
+    :appenders
+    {:println {:enabled? false}
+     :stderr {:enabled? true
+              :fn (fn [data]
+                    (binding [*out* *err*]
+                      (println (force (:output_ data)))
+                      (flush)))}}}))
 
 (defn -main [& args]
   (let [{:keys [options arguments]} (cli/parse-opts args alligator-cli-options)
         config (get-server-config options arguments)]
 
+    (setup-logger! options)
     (reset! mux/enabled-servers (start-servers config))
     (load-handlers!)
 

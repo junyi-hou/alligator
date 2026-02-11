@@ -21,10 +21,9 @@
   [["-c" "--config CONFIG_FILE"
     "Path to the config.yaml file. Will be ignore if config is provided after --"
     :default "config.toml"]
-   ["-v" "--verbose" "Verbosity level"
-    :id :verbosity
-    :default 0
-    :update-fn inc]
+   [nil "--debug" "Whether to print debug output to stderr"
+    :id :debug
+    :default false]
    ["-h" "--help"]])
 
 (def server-options

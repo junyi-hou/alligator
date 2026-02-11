@@ -2,8 +2,7 @@
   (:require
    [jsonrpc4clj.io-chan :as io]
    [mock.utils :as utils]
-   [clojure.core.async :as async]
-   [alligator.log :as log])
+    [clojure.core.async :as async])
   (:gen-class))
 
 (def ^:private capabilities
@@ -21,7 +20,7 @@
 
 (defmethod handle-server-requests :default
   [_ request]
-  (log/log "CLIENT" (str "received unsupported request " (:method request))))
+  (utils/log "CLIENT" (str "received unsupported request " (:method request))))
 
 (defmethod handle-server-requests "workspace/executeCommand"
   [_ request]
@@ -33,7 +32,7 @@
 
   (Thread/sleep 500)
   (let [resp (utils/request client "textDocument/codeAction")]
-    (log/log "CLIENT" "get list of code action")
+    (utils/log "CLIENT" "get list of code action")
     (Thread/sleep 500)))
 
 (defn -main [& _]

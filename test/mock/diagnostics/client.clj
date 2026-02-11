@@ -4,8 +4,7 @@
    [mock.utils :as utils]
    [mock.diagnostics.server2 :refer [diagnostics1 diagnostics2]]
    [mock.diagnostics.server :refer [new-diagnostics]]
-   [clojure.core.async :as async]
-   [alligator.log :as log])
+   [clojure.core.async :as async])
   (:gen-class))
 
 (def ^:private capabilities
@@ -50,24 +49,24 @@
       (utils/shutdown-client client)
       (let [msgs (async/<!! diag-chan)]
         (when-not (= (count msgs) 3)
-          (log/log "FAIL" (str "expect to receive 3 diagnostics, got " (count msgs))))
+          (utils/log "FAIL" (str "expect to receive 3 diagnostics, got " (count msgs))))
         (when-not (= (first (set (map #(get-in % [:params :uri]) msgs))) file-uri)
-          (log/log "FAIL" (format "expect to get diag for %s, got %s" file-uri (map #(get-in % [:params :uri]) msgs))))
+          (utils/log "FAIL" (format "expect to get diag for %s, got %s" file-uri (map #(get-in % [:params :uri]) msgs))))
 
         (let [[f s t] msgs]
           (when-not (= (get-in f [:params :diagnostics])
                        [new-diagnostics])
-            (log/log "FAIL" (format "expect to get diag %s, got %s"
+            (utils/log "FAIL" (format "expect to get diag %s, got %s"
                                     (get-in f [:params :diagnostics])
                                     [new-diagnostics])))
           (when-not (= (frequencies (get-in s [:params :diagnostics]))
                        (frequencies [diagnostics1 new-diagnostics]))
-            (log/log "FAIL" (format "expect to get diag %s, got %s"
+            (utils/log "FAIL" (format "expect to get diag %s, got %s"
                                     [diagnostics1 new-diagnostics]
                                     (get-in s [:params :diagnostics]))))
           (when-not (= (frequencies (get-in t [:params :diagnostics]))
                        (frequencies [diagnostics2 new-diagnostics]))
-            (log/log "FAIL" (format "expect to get diag %s, got %s"
+            (utils/log "FAIL" (format "expect to get diag %s, got %s"
                                     [diagnostics2 new-diagnostics]
                                     (get-in t [:params :diagnostics])))))))
 
