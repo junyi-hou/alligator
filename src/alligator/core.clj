@@ -2,30 +2,49 @@
   (:require
    [clojure.java.io :as io]
    [clojure.core.async :as async]
+   [clojure.tools.cli :as cli]
    [toml-clj.core :as toml]
    [jsonrpc4clj.io-chan :as io-chan]
    [alligator.multiplexer :as mux]
    [alligator.methods :refer [load-handlers!]]
+   [alligator.states :refer [alligator-cli-options server-options]]
    [alligator.router :as router])
   (:gen-class))
 
+(defn ^:private get-server-config [options arguments]
+  (cond
+    (seq arguments)
+    (loop [config {}
+           args arguments]
+      (if (seq args)
+        (let [[this-server-config other-configs] (split-with #(not= % "--server") (rest args))
+              {server-option :options command :arguments} (cli/parse-opts this-server-config server-options)]
+          (recur (assoc config
+                        (first command)
+                        {"command" command
+                         "capabilities" (:capabilities server-option)
+                         "is_default" (:default server-option)})
+                 other-configs))
+        config))
+    (:config options)
+    (with-open [rdr (io/reader (:config options))]
+      (toml/read rdr))))
+
+(defn ^:private start-servers [arguments]
+  (reduce-kv (fn [out k v] (conj out (mux/start-server k
+                                                       (get v "command")
+                                                       (map keyword (get v "capabilities"))
+                                                       (get v "is_default"))))
+             []
+             arguments))
+
 (defn -main [& args]
-  (let [config-file (or (first args) "config.toml")
-        config (with-open [rdr (io/reader config-file)]
-                 (toml/read rdr))]
+  (let [{:keys [options arguments]} (cli/parse-opts args alligator-cli-options)
+        config (get-server-config options arguments)]
 
-    ;; Start all configured LSP servers
+    (reset! mux/enabled-servers (start-servers config))
     (load-handlers!)
-    (reset! mux/enabled-servers
-            (reduce-kv (fn [out k v]
-                         (conj out (mux/start-server k
-                                                     (get v "command")
-                                                     (map keyword (get v "capabilities"))
-                                                     (get v "is_default"))))
-                       []
-                       config))
 
-    ;; Set up client I/O channels
     (let [input-chan (io-chan/input-stream->input-chan System/in)
           output-chan (io-chan/output-stream->output-chan System/out)]
 

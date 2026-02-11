@@ -17,3 +17,23 @@
 ;; channel to signal Alligator to exit
 (defonce exit-chan (async/chan))
 
+(def alligator-cli-options
+  [["-c" "--config CONFIG_FILE"
+    "Path to the config.yaml file. Will be ignore if config is provided after --"
+    :default "config.toml"]
+   ["-v" "--verbose" "Verbosity level"
+    :id :verbosity
+    :default 0
+    :update-fn inc]
+   ["-h" "--help"]])
+
+(def server-options
+  [["-Ac" "--alligator.capabilities CAPABILITIES" "A list of capabilities to use for the server"
+    :multi true
+    :default []
+    :id :capabilities
+    :update-fn (fnil conj [])]
+   ["-Ad" "--alligator.default" "Whether to set this server as the default server"
+    :default false
+    :id :default
+    :parse-fn boolean]])
