@@ -2,7 +2,7 @@
   (:require [clojure.test :refer [deftest testing is use-fixtures]]
             [clojure.core.async :as async]
             [alligator.router :as router]
-            [alligator.request-states
+            [alligator.states
              :refer [outstanding-client-requests server-request-id-mapping]]
             [alligator.methods :as methods]
             [alligator.test-utils :refer [reset-all-states]]))

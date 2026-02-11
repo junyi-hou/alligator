@@ -59,7 +59,7 @@ We use `clojure-lsp` for linting and formatting.
   - `process-client-message`: Client -> Servers.
   - `process-server-message`: Servers -> Client.
 - **Dynamic Loading:** Handlers in `src/alligator/methods/` are dynamically loaded at startup. When adding a new method handler, create a new file in that directory.
-- **State:** Use `atoms` for shared state (e.g., `alligator.request-states`). Keep state minimal and centralized.
+- **State:** Use `atoms` for shared state (e.g., `alligator.states`). Keep state minimal and centralized.
 
 ### Naming Conventions
 - **Functions/Variables:** `kebab-case`.

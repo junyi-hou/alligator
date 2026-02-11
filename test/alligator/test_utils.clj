@@ -3,7 +3,7 @@
    [alligator.methods.diagnostics :as diag]
    [alligator.methods.execute-command :as exec-cmd]
    [alligator.multiplexer :as mux]
-   [alligator.request-states :as states]
+   [alligator.states :as states]
    [clojure.core.async :as async]))
 
 (defn reset-all-states [f]

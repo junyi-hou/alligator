@@ -1,4 +1,4 @@
-(ns alligator.request-states)
+(ns alligator.states)
 
 ;; keep track of the id <> method of all client->server requests
 (defonce outstanding-client-requests (atom {}))

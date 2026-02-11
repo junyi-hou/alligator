@@ -4,7 +4,7 @@
    [alligator.multiplexer :as mux]
    [alligator.log :as log]
    [alligator.methods :as methods]
-   [alligator.request-states :refer [server-request-id-mapping]]))
+   [alligator.states :refer [server-request-id-mapping]]))
 
 ;; unspecified server message (notification, request, or responses) goes directly to
 ;; stdout

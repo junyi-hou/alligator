@@ -25,7 +25,7 @@
             [jsonrpc4clj.coercer :as coercer]
             [alligator.multiplexer :as mux]
             [alligator.log :as log]
-            [alligator.request-states
+            [alligator.states
              :refer [outstanding-client-requests server-request-id-mapping]]
             [alligator.methods :as methods]))
 
@@ -43,7 +43,7 @@
    For malformed messages, return :illegal-client-message-type"
   [message]
   (let [msg-type (coercer/input-message-type message)]
-    (log/log "Client -> Router" (format "type: %s, method: %s" msg-type (:method message)))
+    ;; (log/log "Client -> Router" (format "type: %s, method: %s" msg-type (:method message)))
     ;; update inflight-requests
     (when (= msg-type :request)
       (let [{:keys [id method]} message]
@@ -101,7 +101,7 @@
    Returns :error if receives an error message."
   [{:keys [message] :as msg}]
   (let [msg-type (coercer/input-message-type message)]
-    (log/log "Server -> Router" (format "from: %s, type: %s, method: %s" (:from msg) msg-type (:method message)))
+    ;; (log/log "Server -> Router" (format "from: %s, type: %s, method: %s" (:from msg) msg-type (or (:method message) (get @outstanding-client-requests (:id message)))))
     (let [type (case msg-type
                  :notification (:method message)
                  :request (:method message)
