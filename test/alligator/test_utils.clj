@@ -10,8 +10,8 @@
   (with-redefs [diag/diagnostics-cache (atom {})
                 exec-cmd/server-commands-map (atom {})
                 mux/enabled-servers (atom [])
-                mux/exit-chan (async/chan 1)
                 mux/server-output (async/chan 100)
+                states/exit-chan (async/chan 1)
                 states/outstanding-client-requests (atom {})
                 states/server-request-id-mapping (atom {})]
     (f)))

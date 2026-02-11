@@ -36,5 +36,5 @@
       (router/start-processing-server-messages! output-chan)
 
       ;; Keep main thread alive
-      (async/<!! mux/exit-chan)
+      (async/<!! alligator.states/exit-chan)
       (System/exit 0))))

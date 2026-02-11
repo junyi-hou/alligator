@@ -52,9 +52,6 @@
 ;; This item holds all running servers
 (defonce enabled-servers (atom []))
 
-;; channel to signal Alligator to exit
-(defonce exit-chan (async/chan))
-
 (defn start-server
   "Start a server subprocess and return a map with channels for communication.
   :stdin - channel to write messages TO the subprocess (its stdin)

@@ -1,4 +1,6 @@
-(ns alligator.states)
+(ns alligator.states
+  (:require
+   [clojure.core.async :as async]))
 
 ;; keep track of the id <> method of all client->server requests
 (defonce outstanding-client-requests (atom {}))
@@ -12,3 +14,6 @@
 ;; To avoid collusion, we need to use a different id, and maintain a mapping between the
 ;; original id and the modified id.
 (defonce server-request-id-mapping (atom {}))
+;; channel to signal Alligator to exit
+(defonce exit-chan (async/chan))
+

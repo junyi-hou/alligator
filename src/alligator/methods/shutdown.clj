@@ -3,7 +3,8 @@
   (:require
    [clojure.core.async :as async]
    [alligator.methods :as methods]
-   [alligator.multiplexer :as mux]))
+   [alligator.multiplexer :as mux]
+   [alligator.states :as states]))
 
 (defmethod  methods/process-server-message "shutdown"
   [_ input-chan output-chan]
@@ -14,7 +15,7 @@
         (if (>= (count new-shutdown-servers) (count @mux/enabled-servers))
           (do
             (async/>! output-chan message)
-            (async/close! mux/exit-chan))
+            (async/close! states/exit-chan))
           (recur new-shutdown-servers)))
       ;; if channel is closed before we get all responses, still exit
-      (async/close! mux/exit-chan))))
+      (async/close! states/exit-chan))))

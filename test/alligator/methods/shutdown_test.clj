@@ -4,7 +4,8 @@
    [clojure.test :refer [is deftest use-fixtures testing]]
    [clojure.core.async :as async]
    [alligator.test-utils :refer [reset-all-states]]
-   [alligator.multiplexer :as mux]))
+   [alligator.multiplexer :as mux]
+   [alligator.states :as states]))
 
 (use-fixtures :each reset-all-states)
 
@@ -41,7 +42,7 @@
 
       ;; when no shutdown message, mux/exit-chan is alive and empty
       (let [timeout (async/timeout 1000)
-            [_ ch] (async/alts!! [mux/exit-chan timeout])]
+            [_ ch] (async/alts!! [states/exit-chan timeout])]
         (is (= ch timeout)))
 
       ;; send shutdown message
@@ -50,5 +51,5 @@
 
       ;; after shutdown message is sent, mux/exit-chan is closed and return nil immediately
       (let [timeout (async/timeout 1000)
-            [_ ch] (async/alts!! [mux/exit-chan timeout])]
-        (is (= ch mux/exit-chan))))))
+            [_ ch] (async/alts!! [states/exit-chan timeout])]
+        (is (= ch states/exit-chan))))))
