@@ -28,4 +28,4 @@ jobs:
           direnv export gha > "$GITHUB_ENV"
 
       - name: Run tests
-        run: clj -T:build test
+        run: clojure -T:build test
