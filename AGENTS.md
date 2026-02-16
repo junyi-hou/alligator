@@ -38,7 +38,7 @@ We use `clojure-lsp` for linting and formatting.
 
 ## Code Style Guidelines
 
-### 📦 Namespaces and Imports
+### Namespaces and Imports
 - **Naming:** Use `alligator.<module>` (e.g., `alligator.router`).
 - **Imports:** 
   - Use `:require` with `:as` for most dependencies.
