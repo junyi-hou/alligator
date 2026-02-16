@@ -78,46 +78,46 @@
       (#'alligator.router/get-client-message-type client-message))
 
     ;; Now test server response - should retrieve the method from outstanding-client-requests
-    (let [server-message {:message {:jsonrpc "2.0" :id 1 :result {}}}]
+    (let [msg {:message {:jsonrpc "2.0" :id 1 :result {}} :from "test-server"}]
       (is (= "textDocument/completion"
              (with-redefs [methods/all-server-methods
                            (fn [] '("textDocument/completion" :default))]
-               (#'alligator.router/get-server-message-type server-message))))))
+               (#'alligator.router/get-server-message-type msg))))))
 
   (testing "returns :default for unimplemented response method"
     (let [client-message {:jsonrpc "2.0" :id 101 :method "unimplemented/method"}]
       (#'alligator.router/get-client-message-type client-message))
 
-    (let [message {:message {:jsonrpc "2.0" :id 101 :result {}}}]
+    (let [message {:message {:jsonrpc "2.0" :id 101 :result {}} :from "test-server"}]
       (is (= :default
              (#'alligator.router/get-server-message-type message)))))
 
   (testing "returns implemented method name for server requests"
-    (let [message {:message {:jsonrpc "2.0" :id 101 :method "workspace/applyEdit"}}]
+    (let [msg {:message {:jsonrpc "2.0" :id 101 :method "workspace/applyEdit"} :from "test-server"}]
       (is (= "workspace/applyEdit"
              (with-redefs [methods/all-server-methods
                            (fn [] '("workspace/applyEdit" :default))]
-               (#'alligator.router/get-server-message-type message))))))
+               (#'alligator.router/get-server-message-type msg))))))
 
   (testing "returns :default for unimplemented method name for server requests"
-    (let [message {:message {:jsonrpc "2.0" :id 101 :method "unimplemented/method"}}]
+    (let [msg {:message {:jsonrpc "2.0" :id 101 :method "unimplemented/method"} :from "test-server"}]
       (is (= :default
-             (#'alligator.router/get-server-message-type message)))))
+             (#'alligator.router/get-server-message-type msg)))))
 
   (testing "returns :error for response.error messages"
-    (let [message {:message {:jsonrpc "2.0" :id 1 :error {:code -32603}}}]
+    (let [msg {:message {:jsonrpc "2.0" :id 1 :error {:code -32603}} :from "test-server"}]
       (is (= :error
-             (#'alligator.router/get-server-message-type message)))))
+             (#'alligator.router/get-server-message-type msg)))))
 
   (testing "handles illegal messages"
-    (let [message {:message {:jsonrpc "2.0"}}]
+    (let [msg {:message {:jsonrpc "2.0"} :from "test-server"}]
       (is (= :illegal-server-message-type
-             (#'alligator.router/get-server-message-type message)))))
+             (#'alligator.router/get-server-message-type msg)))))
 
   (testing "handles response with unknown id"
-    (let [message {:message {:jsonrpc "2.0" :id 999 :result {}}}]
+    (let [msg {:message {:jsonrpc "2.0" :id 999 :result {}} :from "test-server"}]
       (is (= :illegal-server-message-type
-             (#'alligator.router/get-server-message-type message))))))
+             (#'alligator.router/get-server-message-type msg))))))
 
 (deftest test-uniquify-server-request-id
   (testing "replaces server request ID with UUID and stores mapping"
