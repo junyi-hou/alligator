@@ -33,7 +33,7 @@ CONFIG_FILE="$MOCK_TEST_FOLDER/$SUITE_NAME/config.toml"
 # Create FIFO
 FIFO=$(mktemp -u)
 mkfifo "$FIFO"
-trap "rm -f '$FIFO'" EXIT INT TERM
+trap 'rm -f ${FIFO}' EXIT INT TERM
 
 # Run tests
 clj -M:test -m "$CLIENT" < "${FIFO}" | clj -M -m alligator.core --debug --config "$CONFIG_FILE" > "${FIFO}"
