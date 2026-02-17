@@ -49,7 +49,7 @@
      :stderr {:enabled? true
               :fn (fn [data]
                     (binding [*out* *err*]
-                      (println (force (:output_ data)))
+                      (println (str "Alligator" (force (:level data)) " - " (force (:msg_ data))))
                       (flush)))}}}))
 
 (defn -main [& args]
