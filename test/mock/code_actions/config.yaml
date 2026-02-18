@@ -1,9 +1,0 @@
-[s1]
-command = ["clj", "-M:test", "-m", "mock.code-action.server", "s1"]
-capabilities = []
-is_default = true
-
-[s2]
-command = ["clj", "-M:test", "-m", "mock.code-action.server", "s2"]
-capabilities = ["code-action-provider"]
-is_default = false

@@ -27,7 +27,7 @@ if [ ! -d "$MOCK_TEST_FOLDER/$SUITE_NAME" ]; then
     exit 1
 fi
 
-CLIENT="mock.${SUITE_NAME}.client"
+CLIENT="mock.${SUITE_NAME//_/-}.client"
 CONFIG_FILE="$MOCK_TEST_FOLDER/$SUITE_NAME/config.toml"
 
 # Create FIFO
