@@ -1,11 +1,11 @@
-name: run all unit tests
+name: run all tests
 on:
   push:
     branches:
       - main
 
 jobs:
-  test:
+  unit-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository code
