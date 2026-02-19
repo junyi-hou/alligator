@@ -1,9 +1,0 @@
-[s1]
-command = ["clj", "-M:test", "-m", "mock.basic.server", "s1"]
-capabilities = []
-is_default = true
-
-# [s2]
-# command = ["clj", "-M", "-m", "mock.basic.server", "s2", "hover-provider"]
-# capabilities = []
-# is_default = true

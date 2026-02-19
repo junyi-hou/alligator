@@ -1,9 +1,0 @@
-[s1]
-command = ["clj", "-M:test", "-m", "mock.diagnostics.server", "s1"]
-capabilities = []
-is_default = true
-
-[s2]
-command = ["clj", "-M:test", "-m", "mock.diagnostics.server2", "s2"]
-capabilities = ["diagnostic-provider"]
-is_default = true

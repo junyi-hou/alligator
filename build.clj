@@ -13,7 +13,7 @@
         cmds     (b/java-command
                   {:basis     basis
                    :main      'clojure.main
-                   :main-args ["-m" "cognitect.test-runner" "-d" "test" "-e" "test/mock/*"]})
+                   :main-args ["-m" "cognitect.test-runner" "-d" "test"]})
         {:keys [exit]} (b/process cmds)]
     (when-not (zero? exit) (throw (ex-info "Tests failed" {}))))
   opts)
