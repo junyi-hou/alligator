@@ -95,7 +95,9 @@
                       (swap! pending-requests dissoc (:id msg)))
                     (timbre/error (format "[%s] received stray response with id %s" name (:id msg))))
                   :request
-                  (request-handlers endpoint msg)
+                  (if request-handlers
+                    (request-handlers endpoint msg)
+                    (timbre/error (format "[%s] cannot handle incoming request" name)))
                   (timbre/error (format "[%s] received invalid message %s" name msg)))
                 (recur))
             ;; Cleanup on close
