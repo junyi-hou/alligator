@@ -61,7 +61,6 @@
               expected {:title (:title picked-action)
                         :kind (:kind picked-action)
                         :edit (server/edit-body "clojure")}]
-          (println result)
           (is (= (:title expected) (:title result)))
           (is (= (:kind expected) (:kind result))))))
 
