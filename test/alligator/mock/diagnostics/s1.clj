@@ -1,8 +1,8 @@
 (ns alligator.mock.diagnostics.s1
   (:require
-   [jsonrpc4clj.io-chan :as io]
    [alligator.test-utils :as utils]
-   [clojure.core.async :as async])
+   [clojure.core.async :as async]
+   [jsonrpc4clj.io-chan :as io])
   (:gen-class))
 
 (def capabilities {:diagnostic-provider true})

@@ -3,9 +3,9 @@
    [alligator.methods :as methods]
    [alligator.methods.code-action :as code-action]
    [alligator.multiplexer :as mux]
+   [alligator.test-utils :refer [reset-all-states]]
    [clojure.core.async :as async]
-   [clojure.test :refer [deftest testing is use-fixtures]]
-   [alligator.test-utils :refer [reset-all-states]]))
+   [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :each reset-all-states)
 

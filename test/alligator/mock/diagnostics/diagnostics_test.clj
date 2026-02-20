@@ -1,12 +1,12 @@
 (ns alligator.mock.diagnostics.diagnostics-test
   (:require
-   [clojure.test :refer [deftest is testing use-fixtures]]
    [alligator.methods :as methods]
-   [alligator.multiplexer :as mux]
-   [alligator.test-utils :as utils]
    [alligator.mock.diagnostics.s1 :as server-1]
    [alligator.mock.diagnostics.s2 :as server-2]
-   [clojure.core.async :as async]))
+   [alligator.multiplexer :as mux]
+   [alligator.test-utils :as utils]
+   [clojure.core.async :as async]
+   [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :each utils/reset-all-states)
 

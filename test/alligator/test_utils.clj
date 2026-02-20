@@ -1,7 +1,7 @@
 (ns alligator.test-utils
   (:require
-   [alligator.core :as core]
    [alligator.cli :as cli]
+   [alligator.core :as core]
    [alligator.methods.diagnostics :as diag]
    [alligator.methods.execute-command :as exec-cmd]
    [alligator.multiplexer :as mux]
@@ -10,7 +10,8 @@
    [jsonrpc4clj.coercer :as coercer]
    [jsonrpc4clj.io-chan :as io-chan]
    [taoensso.timbre :as timbre])
-  (:import (java.io PipedInputStream PipedOutputStream)))
+  (:import
+   (java.io PipedInputStream PipedOutputStream)))
 
 (defn reset-all-states [f]
   (with-redefs [diag/diagnostics-cache (atom {})

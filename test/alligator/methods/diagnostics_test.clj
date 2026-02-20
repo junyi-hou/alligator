@@ -1,10 +1,10 @@
 (ns alligator.methods.diagnostics-test
   (:require
+   [alligator.methods :as methods]
    [alligator.methods.diagnostics :as diag]
    [alligator.test-utils :refer [reset-all-states]]
-   [clojure.test :refer [is deftest testing use-fixtures]]
    [clojure.core.async :as async]
-   [alligator.methods :as methods]))
+   [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :each reset-all-states)
 

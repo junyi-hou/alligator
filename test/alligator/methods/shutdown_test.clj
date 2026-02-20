@@ -1,11 +1,11 @@
 (ns alligator.methods.shutdown-test
   (:require
    [alligator.methods :as methods]
-   [clojure.test :refer [is deftest use-fixtures testing]]
-   [clojure.core.async :as async]
-   [alligator.test-utils :refer [reset-all-states]]
    [alligator.multiplexer :as mux]
-   [alligator.states :as states]))
+   [alligator.states :as states]
+   [alligator.test-utils :refer [reset-all-states]]
+   [clojure.core.async :as async]
+   [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :each reset-all-states)
 

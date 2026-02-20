@@ -1,9 +1,9 @@
 (ns alligator.cli-test
   (:require
-   [clojure.test :refer [is deftest testing use-fixtures]]
-   [clojure.java.io :as io]
+   [alligator.cli :as cli]
    [alligator.test-utils :refer [reset-all-states]]
-   [alligator.cli :as cli]))
+   [clojure.java.io :as io]
+   [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :each reset-all-states)
 

@@ -1,8 +1,9 @@
 (ns alligator.methods-test
-  (:require [clojure.test :refer [deftest testing is use-fixtures]]
-            [alligator.methods :as methods]
-            [clojure.java.io :as io]
-            [alligator.test-utils :refer [reset-all-states]]))
+  (:require
+   [alligator.methods :as methods]
+   [alligator.test-utils :refer [reset-all-states]]
+   [clojure.java.io :as io]
+   [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :each reset-all-states)
 

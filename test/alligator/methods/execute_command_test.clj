@@ -1,11 +1,11 @@
 (ns alligator.methods.execute-command-test
   (:require
-   [clojure.test :refer [deftest is testing use-fixtures]]
-   [clojure.core.async :as async]
-   [alligator.methods.execute-command :as exec-cmd]
    [alligator.methods :as methods]
+   [alligator.methods.execute-command :as exec-cmd]
    [alligator.multiplexer :as mux]
-   [alligator.test-utils :refer [reset-all-states]]))
+   [alligator.test-utils :refer [reset-all-states]]
+   [clojure.core.async :as async]
+   [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :each reset-all-states)
 

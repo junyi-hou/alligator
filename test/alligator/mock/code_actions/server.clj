@@ -18,10 +18,11 @@
 
    run: clj -M:test -m mock.code-actions.server [server-name]
   "
-  (:require [alligator.test-utils :as utils]
-            [clojure.core.async :as async]
-            [jsonrpc4clj.io-chan :as io]
-            [taoensso.timbre :as timbre])
+  (:require
+   [alligator.test-utils :as utils]
+   [clojure.core.async :as async]
+   [jsonrpc4clj.io-chan :as io]
+   [taoensso.timbre :as timbre])
   (:gen-class))
 
 (def ^:private server-capabilities {:code-action-provider {:resolve-provider true}})

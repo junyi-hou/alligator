@@ -1,7 +1,8 @@
 (ns alligator.methods.code-action
-  (:require [alligator.methods :as methods]
-            [clojure.core.async :as async]
-            [alligator.multiplexer :as mux]))
+  (:require
+   [alligator.methods :as methods]
+   [alligator.multiplexer :as mux]
+   [clojure.core.async :as async]))
 
 (defn ^:private interject-code-action-source
   "When applying the selected code action, client may need to send it back to the server

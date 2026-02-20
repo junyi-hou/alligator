@@ -1,10 +1,10 @@
 (ns alligator.mock.code-actions.code-actions-test
   (:require
-   [clojure.test :refer [deftest is testing use-fixtures]]
-   [taoensso.timbre :as timbre]
    [alligator.methods :as methods]
+   [alligator.mock.code-actions.server :as server]
    [alligator.test-utils :as utils]
-   [alligator.mock.code-actions.server :as server]))
+   [clojure.test :refer [deftest is testing use-fixtures]]
+   [taoensso.timbre :as timbre]))
 
 (use-fixtures :each utils/reset-all-states)
 

@@ -1,14 +1,14 @@
 (ns alligator.core
   (:require
+   [alligator.cli :refer [alligator-cli-options get-server-config usage]]
+   [alligator.methods :refer [load-handlers!]]
+   [alligator.multiplexer :as mux]
+   [alligator.router :as router]
+   [alligator.states :as states]
    [clojure.core.async :as async]
    [clojure.tools.cli :as cli]
    [jsonrpc4clj.io-chan :as io-chan]
-   [taoensso.timbre :as timbre]
-   [alligator.multiplexer :as mux]
-   [alligator.methods :refer [load-handlers!]]
-   [alligator.states :as states]
-   [alligator.cli :refer [alligator-cli-options usage get-server-config]]
-   [alligator.router :as router])
+   [taoensso.timbre :as timbre])
   (:gen-class))
 
 (defn start-servers [server-config]

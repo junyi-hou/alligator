@@ -1,13 +1,13 @@
 (ns alligator.methods.initialize
   "Merge multiple server initialize responses"
   (:require
-   [clojure.core.async :as async]
-   [clojure.string :refer [join]]
-   [clojure.java.io :as io]
-   [clojure.edn :as edn]
-   [alligator.multiplexer :as mux]
    [alligator.methods :as methods]
-   [alligator.methods.execute-command :as exec-commands]))
+   [alligator.methods.execute-command :as exec-commands]
+   [alligator.multiplexer :as mux]
+   [clojure.core.async :as async]
+   [clojure.edn :as edn]
+   [clojure.java.io :as io]
+   [clojure.string :refer [join]]))
 
 (defmulti ^:private do-merge
   "Function that merge a capability key."

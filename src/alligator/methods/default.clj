@@ -1,10 +1,10 @@
 (ns alligator.methods.default
   (:require
-   [clojure.core.async :as async]
-   [taoensso.timbre :refer [warn]]
-   [alligator.multiplexer :as mux]
    [alligator.methods :as methods]
-   [alligator.states :refer [server-request-id-mapping]]))
+   [alligator.multiplexer :as mux]
+   [alligator.states :refer [server-request-id-mapping]]
+   [clojure.core.async :as async]
+   [taoensso.timbre :refer [warn]]))
 
 ;; unspecified server message (notification, request, or responses) goes directly to
 ;; stdout

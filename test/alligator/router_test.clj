@@ -1,11 +1,12 @@
 (ns alligator.router-test
-  (:require [clojure.test :refer [deftest testing is use-fixtures]]
-            [clojure.core.async :as async]
-            [alligator.router :as router]
-            [alligator.states
+  (:require
+   [alligator.methods :as methods]
+   [alligator.router :as router]
+   [alligator.states
              :refer [outstanding-client-requests server-request-id-mapping]]
-            [alligator.methods :as methods]
-            [alligator.test-utils :refer [reset-all-states]]))
+   [alligator.test-utils :refer [reset-all-states]]
+   [clojure.core.async :as async]
+   [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :each reset-all-states)
 

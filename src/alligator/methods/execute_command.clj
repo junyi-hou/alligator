@@ -1,9 +1,9 @@
 (ns alligator.methods.execute-command
   (:require
-   [clojure.core.async :as async]
-   [taoensso.timbre :refer [warn]]
    [alligator.methods :as methods]
-   [alligator.multiplexer :as mux]))
+   [alligator.multiplexer :as mux]
+   [clojure.core.async :as async]
+   [taoensso.timbre :refer [warn]]))
 
 ;; Keep a list of commands that server can run
 ;; Structure: {:server1 [...] server2 [...] ...}

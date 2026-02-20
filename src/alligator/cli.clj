@@ -1,8 +1,8 @@
 (ns alligator.cli
   (:require
+   [clojure.java.io :as io]
    [clojure.string :as str]
    [clojure.tools.cli :as cli]
-   [clojure.java.io :as io]
    [taoensso.timbre :as timbre]
    [toml-clj.core :as toml]))
 

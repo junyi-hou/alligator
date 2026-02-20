@@ -1,10 +1,10 @@
 (ns alligator.methods.shutdown
   "Shut down Alligator after all servers responded to the shutdown message."
   (:require
-   [clojure.core.async :as async]
    [alligator.methods :as methods]
    [alligator.multiplexer :as mux]
-   [alligator.states :as states]))
+   [alligator.states :as states]
+   [clojure.core.async :as async]))
 
 (defmethod  methods/process-server-message "shutdown"
   [_ input-chan output-chan]

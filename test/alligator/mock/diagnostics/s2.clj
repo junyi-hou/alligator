@@ -1,9 +1,9 @@
 (ns alligator.mock.diagnostics.s2
   (:require
-   [alligator.test-utils :as utils]
    [alligator.mock.diagnostics.s1 :refer [handle-request]]
-   [jsonrpc4clj.io-chan :as io]
-   [clojure.core.async :as async])
+   [alligator.test-utils :as utils]
+   [clojure.core.async :as async]
+   [jsonrpc4clj.io-chan :as io])
   (:gen-class))
 
 (def diagnostics1 [{:range {:start {:line 0 :character 0} :end {:line 0 :character 5}} :message "old error from s2"}])

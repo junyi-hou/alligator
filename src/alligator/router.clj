@@ -21,13 +21,14 @@
 
   The router maintains request-response correlations and ensures messages reach
   their intended handlers in the multiplexed environment."
-  (:require [clojure.core.async :as async]
-            [jsonrpc4clj.coercer :as coercer]
-            [taoensso.timbre :refer [debug]]
-            [alligator.multiplexer :as mux]
-            [alligator.states
+  (:require
+   [alligator.methods :as methods]
+   [alligator.multiplexer :as mux]
+   [alligator.states
              :refer [outstanding-client-requests server-request-id-mapping]]
-            [alligator.methods :as methods]))
+   [clojure.core.async :as async]
+   [jsonrpc4clj.coercer :as coercer]
+   [taoensso.timbre :refer [debug]]))
 
 (derive ::response.error ::response)
 (derive ::response.result ::response)

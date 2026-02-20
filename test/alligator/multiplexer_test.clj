@@ -1,10 +1,11 @@
 (ns alligator.multiplexer-test
   (:require
-   [clojure.test :refer [deftest is testing use-fixtures]]
-   [clojure.core.async :as async]
    [alligator.multiplexer :as multiplexer]
-   [alligator.test-utils :refer [reset-all-states]])
-  (:import [clojure.core.async.impl.channels ManyToManyChannel]))
+   [alligator.test-utils :refer [reset-all-states]]
+   [clojure.core.async :as async]
+   [clojure.test :refer [deftest is testing use-fixtures]])
+  (:import
+   [clojure.core.async.impl.channels ManyToManyChannel]))
 
 (use-fixtures :each reset-all-states)
 

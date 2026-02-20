@@ -1,7 +1,8 @@
 (ns alligator.mock.basic.server
-  (:require [clojure.core.async :as async]
-            [jsonrpc4clj.io-chan :as io]
-            [alligator.test-utils :as utils])
+  (:require
+   [alligator.test-utils :as utils]
+   [clojure.core.async :as async]
+   [jsonrpc4clj.io-chan :as io])
   (:gen-class))
 
 (def server-capabilities {:completion-provider {:trigger-characters ["."]}})

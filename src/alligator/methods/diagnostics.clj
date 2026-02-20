@@ -2,8 +2,8 @@
   "Merge publishDiagnostics returns from the servers."
   (:require
    [alligator.methods :as methods]
-   [clojure.core.async :as async]
-   [alligator.multiplexer :as mux]))
+   [alligator.multiplexer :as mux]
+   [clojure.core.async :as async]))
 
 ;; Cache published diagnostics from all servers.
 ;; Structure: {uri {server-name {:diagnostics [...] :version n}}}

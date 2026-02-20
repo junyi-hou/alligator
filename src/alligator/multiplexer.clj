@@ -4,8 +4,8 @@
    1. management of LSP servers as subprocess (via the `start-server` function).
    2. server utility functions, e.g., getting the list of supported methods for each server."
   (:require
-   [clojure.java.process :as proc]
    [clojure.core.async :as async]
+   [clojure.java.process :as proc]
    [jsonrpc4clj.io-chan :as io]))
 
 (def ^:private provider-methods
