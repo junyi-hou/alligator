@@ -62,8 +62,8 @@
             {:keys [server-name original-id]} (get @states/server-request-id-mapping remapped-id)
             server (mux/get-server-by-name multiplexer server-name)]
         (when (async/>! (:stdin server) (assoc message :id original-id))
-          (swap! states/server-request-id-mapping dissoc remapped-id))))
-    (recur)))
+          (swap! states/server-request-id-mapping dissoc remapped-id)))
+      (recur))))
 
 ;; client error go to only the server who sends the requests
 (defmethod methods/process-client-message :error

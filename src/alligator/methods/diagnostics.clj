@@ -52,5 +52,5 @@
       (doseq [server (mux/list-servers multiplexer)]
         (async/>! (:stdin server) message))
       (let [uri (get-in message [:params :textDocument :uri])]
-        (swap! diagnostics-cache dissoc uri)))
-    (recur)))
+        (swap! diagnostics-cache dissoc uri))
+      (recur))))

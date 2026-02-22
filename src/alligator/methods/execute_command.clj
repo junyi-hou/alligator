@@ -29,5 +29,5 @@
                             (async/>! (:stdin server) message))
           :else (do
                   (async/>! (mux/get-output-chan multiplexer) (error-response (:id message) params))
-                  (warn (format "[Router] More than 1 server is capable of running %s" command-to-run))))))
-    (recur)))
+                  (warn (format "[Router] More than 1 server is capable of running %s" command-to-run)))))
+      (recur))))

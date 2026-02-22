@@ -63,6 +63,5 @@
                      :id (:id message)
                      :error {:code -32000
                              :message "Could not find the right server to relay the codeAction/Resolve request"
-                             :data (:data params)}}))))
-
-    (recur)))
+                             :data (:data params)}})))
+      (recur))))
