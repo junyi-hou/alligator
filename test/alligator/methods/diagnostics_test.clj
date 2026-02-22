@@ -2,11 +2,9 @@
   (:require
    [alligator.methods :as methods]
    [alligator.methods.diagnostics :as diag]
-   [alligator.test-utils :refer [reset-all-states]]
+   [alligator.multiplexer :as mux]
    [clojure.core.async :as async]
-   [clojure.test :refer [deftest is testing use-fixtures]]))
-
-(use-fixtures :each reset-all-states)
+   [clojure.test :refer [deftest is testing]]))
 
 (methods/load-handlers!)
 
@@ -51,11 +49,12 @@
 
 (deftest test-process-server-message-diagnostic
   (testing "process-server-message 'textDocument/publishDiagnostics' merges and sends to output-chan"
-    (let [in-chan (async/chan 10)
+    (let [m (mux/create-multiplexer)
+          in-chan (async/chan 10)
           out-chan (async/chan 10)
           uri "file:///test.clj"]
 
-      (methods/process-server-message "textDocument/publishDiagnostics" in-chan out-chan)
+      (methods/process-server-message "textDocument/publishDiagnostics" in-chan out-chan m)
 
       (async/>!! in-chan {:from "s1"
                           :message {:jsonrpc "2.0"
@@ -75,18 +74,20 @@
       (let [resp2 (async/<!! out-chan)]
         (is (= 2 (count (get-in resp2 [:params :diagnostics]))))
         (is (some #(= "Err 1" (:message %)) (get-in resp2 [:params :diagnostics])))
-        (is (some #(= "Err 2" (:message %)) (get-in resp2 [:params :diagnostics])))))))
+        (is (some #(= "Err 2" (:message %)) (get-in resp2 [:params :diagnostics]))))
+      (mux/stop-all-servers! m))))
 
 (deftest test-process-client-message-did-close
   (testing "textDocument/didClose notification deletes diagnostic-cache entry"
-    (let [uri "file:///closed.clj"
+    (let [m (mux/create-multiplexer)
+          uri "file:///closed.clj"
           in-chan (async/chan 10)]
 
       ;; Pre-populate cache
-      (swap! diag/diagnostics-cache assoc uri {"s1" {:version 1 :diagnostics []}})
+      (reset! diag/diagnostics-cache {uri {"s1" {:version 1 :diagnostics []}}})
       (is (contains? @diag/diagnostics-cache uri))
 
-      (methods/process-client-message "textDocument/didClose" in-chan)
+      (methods/process-client-message "textDocument/didClose" in-chan m)
 
       (async/>!! in-chan {:jsonrpc "2.0"
                           :method "textDocument/didClose"
@@ -94,4 +95,5 @@
       ;; Need a small timeout or wait for the side effect as process-client-message
       ;; usually runs a go-loop that might take a tiny bit of time
       (Thread/sleep 10)
-      (is (not (contains? @diag/diagnostics-cache uri))))))
+      (is (not (contains? @diag/diagnostics-cache uri)))
+      (mux/stop-all-servers! m))))

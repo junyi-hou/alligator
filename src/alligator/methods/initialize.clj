@@ -2,7 +2,6 @@
   "Merge multiple server initialize responses"
   (:require
    [alligator.methods :as methods]
-   [alligator.methods.execute-command :as exec-commands]
    [alligator.multiplexer :as mux]
    [clojure.core.async :as async]
    [clojure.edn :as edn]
@@ -69,9 +68,9 @@
   "Filter capabilities based on server's configured capabilities.  If the server is
    default server, return all capabilities.  Otherwise, only return capabilities that
    match the server's configuration."
-  [capabilities server-name]
-  (let [configured-caps (mux/configured-capabilities-from-server-name server-name)
-        is-default (mux/is-default-server server-name)]
+  [multiplexer capabilities server-name]
+  (let [configured-caps (mux/configured-capabilities-from-server-name multiplexer server-name)
+        is-default (mux/is-default-server multiplexer server-name)]
     (if is-default
       capabilities
       ;; Filter capabilities to only include configured ones
@@ -79,12 +78,12 @@
 
 (defn merge-server-capabilities
   "Merge server capabilities from multiple initialize responses."
-  [& initialize-messages]
+  [multiplexer & initialize-messages]
   (let [filtered-caps (->> initialize-messages
                            (map (fn [msg]
-                                  (let [server-name (:from msg)
-                                        caps (get-in msg [:message :result :capabilities])]
-                                    (filter-capabilities-by-server-config caps server-name))))
+                                   (let [server-name (:from msg)
+                                         caps (get-in msg [:message :result :capabilities])]
+                                     (filter-capabilities-by-server-config multiplexer caps server-name))))
                            (filter some?))
         ;; Get all unique capability keys
         keys (->> filtered-caps
@@ -95,13 +94,14 @@
          (into {}))))
 
 (defmethod methods/process-server-message "initialize"
-  [_ in-chan out-chan]
-  (let [num-servers (count @mux/enabled-servers)
+  [_ in-chan out-chan multiplexer]
+  (let [servers (mux/list-servers multiplexer)
+        num-servers (count servers)
         version (-> (io/resource "version.edn")
                     slurp
                     edn/read-string
                     :version)
-        name (->> @mux/enabled-servers
+        name (->> servers
                   (map :name)
                   (join "+")
                   (format "Alligator (%s)"))]
@@ -109,7 +109,7 @@
       (when-let [msg (async/<! in-chan)]
         ;; ;; update accept-command-list
         (when-let [accepted-commands (get-in msg [:message :result :capabilities :execute-command-provider :commands])]
-          (swap! exec-commands/server-commands-map assoc (:from msg) accepted-commands))
+          (mux/add-server-commands! multiplexer (:from msg) accepted-commands))
 
         ;; update response list
         (let [new-responses (conj responses msg)]
@@ -117,7 +117,7 @@
             (async/>! out-chan
                       {:jsonrpc "2.0"
                        :id 1
-                       :result {:capabilities (apply merge-server-capabilities new-responses)
+                       :result {:capabilities (apply merge-server-capabilities multiplexer new-responses)
                                 :server-info {:name name
                                               :version version}}})
             (recur new-responses)))))))

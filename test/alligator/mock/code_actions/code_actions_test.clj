@@ -28,7 +28,7 @@
   (some #(when (= title (:title %)) %) actions))
 
 (deftest code-actions-integration-test
-  (let [{:keys [client]} (utils/start-servers-and-client
+  (let [{:keys [client multiplexer]} (utils/start-servers-and-client
                           ["--" "clj -M:test -m alligator.mock.code-actions.server clj" "--default"
                            "--" "clojure -M:test -m alligator.mock.code-actions.server clojure" "-c" "code-action-provider"]
                           handle-server-requests)]
@@ -65,4 +65,4 @@
           (is (= (:kind expected) (:kind result))))))
 
     (Thread/sleep 500)
-    (utils/shutdown-client client)))
+    (utils/stop-servers-and-client! {:client client :multiplexer multiplexer})))

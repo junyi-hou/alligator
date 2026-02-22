@@ -16,10 +16,12 @@
 
     (let [in-chan (async/chan)
           out-chan (async/chan)
+          m (mux/create-multiplexer)
           msg1 {:from "s1" :message {:jsonrpc "2.0" :id 1000 :result nil}}
           msg2 {:from "s2" :message {:jsonrpc "2.0" :id 1000 :result nil}}]
-      (reset! mux/enabled-servers [{:name "s1"} {:name "s2"}])
-      (methods/process-server-message "shutdown" in-chan out-chan)
+      (mux/add-server! m "s1" ["cat"] [] false)
+      (mux/add-server! m "s2" ["cat"] [] false)
+      (methods/process-server-message "shutdown" in-chan out-chan m)
 
       (async/>!! in-chan msg1)
       ;; should timeout as we should not put any thing in out-chan yet
@@ -30,15 +32,17 @@
       (async/>!! in-chan msg2)
       (let [msg (async/<!! out-chan)]
         (is (= (:id msg) 1000))
-        (is (= (:result msg) nil))))))
+        (is (= (:result msg) nil)))
+      (mux/stop-all-servers! m))))
 
 (deftest test-shutdown-alligator
   (testing "shutdown message also shuts down alligator"
     (let [in-chan (async/chan)
           out-chan (async/chan)
+          m (mux/create-multiplexer)
           msg {:from "s1" :message {:jsonrpc "2.0" :id 2000 :result nil}}]
-      (reset! mux/enabled-servers [{:name "s1"}])
-      (methods/process-server-message "shutdown" in-chan out-chan)
+      (mux/add-server! m "s1" ["cat"] {} false)
+      (methods/process-server-message "shutdown" in-chan out-chan m)
 
       ;; when no shutdown message, mux/exit-chan is alive and empty
       (let [timeout (async/timeout 1000)
@@ -52,4 +56,5 @@
       ;; after shutdown message is sent, mux/exit-chan is closed and return nil immediately
       (let [timeout (async/timeout 1000)
             [_ ch] (async/alts!! [states/exit-chan timeout])]
-        (is (= ch states/exit-chan))))))
+        (is (= ch states/exit-chan)))
+      (mux/stop-all-servers! m))))

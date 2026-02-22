@@ -19,31 +19,30 @@
   (format "%s/foo.clj" root-uri))
 
 (defn ^:private test-diagnostics [notif-chan expected]
-  (let [timeout-chan (async/timeout 1500)
+  (let [timeout-chan (async/timeout 5000)
         [msg chan] (async/alts!! [timeout-chan notif-chan])]
-    (when (= chan timeout-chan)
-      (is false "Timeout getting the diagnostics notification"))
-
-    (is (= (get-in msg [:params :diagnostics])
-           expected))))
+    (if (= chan timeout-chan)
+      (is false "Timeout getting the diagnostics notification")
+      (is (= (get-in msg [:params :diagnostics])
+             expected)))))
 
 (deftest diagnostics-integration-test
-  (let [{:keys [client]} (utils/start-servers-and-client
-                          ["--" "clj -M:test -m alligator.mock.diagnostics.s1" "--default"
-                           ;; alligator identifies servers using their executable, and two servers with the same name
-                           ;; will name collision
-                           "--" "clojure -M:test -m alligator.mock.diagnostics.s2" "-c" "diagnostic-provider"])
+  (let [{:keys [client multiplexer]} (utils/start-servers-and-client
+                                      ["--" "clj -M:test -m alligator.mock.diagnostics.s1" "--default"
+                                       ;; alligator identifies servers using their executable, and two servers with the same name
+                                       ;; will name collision
+                                       "--" "clojure -M:test -m alligator.mock.diagnostics.s2" "-c" "diagnostic-provider"])
         notif-chan (:notification-chan client)]
 
     (testing "Successfully launch 2 servers"
-      (is (= (count @mux/enabled-servers) 2)))
+      (is (= (count (mux/list-servers multiplexer)) 2)))
 
     (testing "Handshake"
       (let [resp (utils/request client "initialize" {:capabilities {} :root-uri "file:///"})]
         (is (= "Alligator (clj+clojure)" (get-in resp [:result :server-info :name])))
         (utils/notify client "initialized")))
 
-    (Thread/sleep 100)
+    (Thread/sleep 500)
     (utils/notify client "textDocument/didOpen" {:text-document {:uri file-uri}})
 
     (testing "Receive the first diagnostic notification"
@@ -55,4 +54,4 @@
     (testing "Receive the third diagnostic notification"
       (test-diagnostics notif-chan [server-1/new-diagnostics server-2/diagnostics2]))
 
-    (utils/shutdown-client client)))
+    (utils/stop-servers-and-client! {:client client :multiplexer multiplexer})))

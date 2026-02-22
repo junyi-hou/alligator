@@ -1,11 +1,8 @@
 (ns alligator.methods-test
   (:require
    [alligator.methods :as methods]
-   [alligator.test-utils :refer [reset-all-states]]
    [clojure.java.io :as io]
-   [clojure.test :refer [deftest is testing use-fixtures]]))
-
-(use-fixtures :each reset-all-states)
+   [clojure.test :refer [deftest is testing]]))
 
 (deftest test-ns-from-file
   (testing "converts file path to namespace symbol"
@@ -16,4 +13,9 @@
     (testing "handles nested directories"
       (let [file (io/file "src/alligator/methods/subdir/handler.clj")
             ns-sym (#'alligator.methods/ns-from-file file)]
-        (is (= 'alligator.methods.subdir.handler ns-sym))))))
+        (is (= 'alligator.methods.subdir.handler ns-sym))))
+
+    (testing "handles underscores"
+      (let [file (io/file "src/alligator/methods/subdir/some_handler.clj")
+            ns-sym (#'alligator.methods/ns-from-file file)]
+        (is (= 'alligator.methods.subdir.some-handler ns-sym))))))

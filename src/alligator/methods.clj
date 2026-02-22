@@ -25,7 +25,7 @@
   message-channel (you can assume that the channel contains only message of that
   specific method), process it and write to the Alligator stdout channel, which will be
   directed to che client."
-  (fn [method _msg-chan _output-chan] method))
+  (fn [method _msg-chan _output-chan _multiplexer] method))
 
 (defmulti process-client-message
   "Processes client-side LSP messages using method-based dispatch.
@@ -36,7 +36,7 @@
   message-channel (you can assume that the channel contains only message of that
   specific method), process it and write to stdin of the server(s) that are suppose to
   receive it."
-  (fn [method _msg-chan] method))
+  (fn [method _msg-chan _multiplexer] method))
 
 (defn all-client-methods []
   (keys (clojure.core/methods process-client-message)))
@@ -50,6 +50,7 @@
         ns-str (-> path
                    (str/replace #".*src/" "")
                    (str/replace #"\.clj$" "")
+                   (str/replace #"_" "-")
                    (str/replace #"/" "."))]
     (symbol ns-str)))
 

@@ -1,71 +1,82 @@
 (ns alligator.methods.execute-command-test
   (:require
    [alligator.methods :as methods]
-   [alligator.methods.execute-command :as exec-cmd]
    [alligator.multiplexer :as mux]
-   [alligator.test-utils :refer [reset-all-states]]
    [clojure.core.async :as async]
-   [clojure.test :refer [deftest is testing use-fixtures]]))
+   [clojure.test :refer [deftest is testing]]
+   [taoensso.timbre :as timbre]))
 
-(use-fixtures :each reset-all-states)
+(timbre/merge-config! {:min-level :debug})
 
 (methods/load-handlers!)
 
 (deftest test-execute-command-relay
+
   (testing "Relays command to the correct server"
-    (let [in-chan (async/chan 10)
-          s1-stdin (async/chan 10)
-          server1 {:name "s1" :stdin s1-stdin}
-          server2 {:name "s2" :stdin (async/chan 10)}]
+    (let [in-chan (async/chan)
+          out-chan (async/chan)
+          m (mux/create-multiplexer out-chan)]
 
-      (reset! mux/enabled-servers [server1 server2])
-      (reset! exec-cmd/server-commands-map {"s1" ["command.one"]
-                                            "s2" ["command.two"]})
+      (mux/add-server! m "s1" ["cat"])
+      (mux/add-server! m "s2" ["cat"])
+      (mux/add-server-commands! m "s1" ["command.one"])
+      (mux/add-server-commands! m "s2" ["command.two"])
 
-      (methods/process-client-message "workspace/executeCommand" in-chan)
+      (methods/process-client-message "workspace/executeCommand" in-chan m)
 
       (async/>!! in-chan {:jsonrpc "2.0"
                           :id 1
                           :method "workspace/executeCommand"
                           :params {:command "command.one"}})
 
-      (let [relayed (async/<!! s1-stdin)]
-        (is (= "command.one" (get-in relayed [:params :command])))
-        (is (= 1 (:id relayed))))))
+      (let [relayed (async/<!! out-chan)]
+        (is (= "s1" (:from relayed)))
+        (is (= "command.one" (get-in relayed [:message :params :command])))
+        (is (= 1 (get-in relayed [:message :id]))))
+      (mux/stop-all-servers! m)))
 
   (testing "Returns error if no server supports the command"
-    (let [in-chan (async/chan 10)]
+    (let [in-chan (async/chan)
+          out-chan (async/chan)
+          m (mux/create-multiplexer out-chan)]
 
-      (reset! exec-cmd/server-commands-map {"s1" ["command.one"]})
+      (mux/add-server! m "s1" ["cat"])
+      (mux/add-server-commands! m "s1" ["command.one"])
 
-      (methods/process-client-message "workspace/executeCommand" in-chan)
+      (methods/process-client-message "workspace/executeCommand" in-chan m)
 
       (async/>!! in-chan {:jsonrpc "2.0"
                           :id 2
                           :method "workspace/executeCommand"
                           :params {:command "unknown.command"}})
 
-      (let [response (async/<!! mux/server-output)]
+      (let [response (async/<!! out-chan)]
         (is (= 2 (:id response)))
         (is (contains? response :error))
         (is (= "Could not find the right server to relay the workspace/executeCommand request"
-               (get-in response [:error :message]))))))
+               (get-in response [:error :message]))))
+      (mux/stop-all-servers! m)))
 
   (testing "Returns error if multiple servers support the command"
-    (let [in-chan (async/chan 10)]
+    (let [in-chan (async/chan 10)
+          out-chan (async/chan 10)
+          m (mux/create-multiplexer out-chan)]
 
-      (reset! exec-cmd/server-commands-map {"s1" ["shared.command"]
-                                            "s2" ["shared.command"]})
+      (mux/add-server! m "s1" ["cat"])
+      (mux/add-server! m "s2" ["cat"])
+      (mux/add-server-commands! m "s1" ["shared.command"])
+      (mux/add-server-commands! m "s2" ["shared.command"])
 
-      (methods/process-client-message "workspace/executeCommand" in-chan)
+      (methods/process-client-message "workspace/executeCommand" in-chan m)
 
       (async/>!! in-chan {:jsonrpc "2.0"
                           :id 3
                           :method "workspace/executeCommand"
                           :params {:command "shared.command"}})
 
-      (let [response (async/<!! mux/server-output)]
+      (let [response (async/<!! out-chan)]
         (is (= 3 (:id response)))
         (is (contains? response :error))
         (is (= "Could not find the right server to relay the workspace/executeCommand request"
-               (get-in response [:error :message])))))))
+               (get-in response [:error :message]))))
+      (mux/stop-all-servers! m))))

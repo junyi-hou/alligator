@@ -25,7 +25,7 @@
          vec)))
 
 (defmethod methods/process-server-message "textDocument/codeAction"
-  [_ code-action-chan output-chan]
+  [_ code-action-chan output-chan multiplexer]
   (async/go-loop [inflight {}]
     (when-let [msg (async/<! code-action-chan)]
       (let [{:keys [message] server-name :from} msg
@@ -33,7 +33,7 @@
             result (interject-code-action-source (:result message) server-name)
             entry (or (get inflight id)
                       {:results {}
-                       :expected-count (count (mux/server-accept-method "textDocument/codeAction"))})
+                       :expected-count (count (mux/server-accept-method multiplexer "textDocument/codeAction"))})
             new-results (assoc (:results entry) server-name result)]
         (if (>= (count new-results) (:expected-count entry))
           (do
@@ -45,23 +45,24 @@
           (recur (assoc inflight id (assoc entry :results new-results))))))))
 
 (defmethod methods/process-client-message "codeAction/resolve"
-  [_ resolve-chan]
+  [_ resolve-chan multiplexer]
   (async/go-loop []
     (when-let [message (async/<! resolve-chan)]
       (let [params (:params message)
             server-name (get-in params [:data :alligator-source])]
 
-        (if-let [server (some #(when (= (:name %) server-name) %) @mux/enabled-servers)]
+        (if-let [server (mux/get-server-by-name multiplexer server-name)]
           (async/>!
            (:stdin server)
            ;; remove the added :alligator-source key
            (assoc-in message [:params :data] (dissoc (get params :data) :alligator-source)))
 
           ;; if no server-name is found or no running server with the name, return an error
-          (async/>! mux/server-output {:jsonrpc "2.0"
-                                       :id (:id message)
-                                       :error {:code -32000
-                                               :message "Could not find the right server to relay the codeAction/Resolve request"
-                                               :data (:data params)}}))))
+          (async/>! (mux/get-output-chan multiplexer)
+                    {:jsonrpc "2.0"
+                     :id (:id message)
+                     :error {:code -32000
+                             :message "Could not find the right server to relay the codeAction/Resolve request"
+                             :data (:data params)}}))))
 
     (recur)))

@@ -45,43 +45,6 @@
    ;; :workspace.workspaceFolders ["workspace/workspaceFolders"]
    :execute-command-provider ["workspace/executeCommand"]})
 
-;; collect all messages form all servers
-;; {:message msg :from server-name}
-(defonce server-output (async/chan 100))
-
-;; This item holds all running servers
-(defonce enabled-servers (atom []))
-
-(defn start-server
-  "Start a server subprocess and return a map with channels for communication.
-  :stdin - channel to write messages TO the subprocess (its stdin)
-
-  The server will read from its subprocess stdout and forward all messages
-  to the server-output with metadata about which server sent it."
-  ([name command] (start-server name command [] true))
-  ([name command capabilities] (start-server name command capabilities false))
-  ([name command capabilities is-default]
-   (let [p (apply proc/start command)
-        ;; subprocess's stdin -> we write to it
-         stdin (-> p
-                   proc/stdin
-                   io/output-stream->output-chan)
-         capabilities (distinct (concat capabilities [:*]))]
-
-     ;; Read from subprocess stdout and forward to common channel
-     (async/thread
-       (let [proc-out-chan (-> p
-                               proc/stdout
-                               io/input-stream->input-chan)]
-         (loop []
-           (when-let [message (async/<!! proc-out-chan)]
-
-            ;; Add server name to the message before forwarding
-             (async/>!! server-output {:from name :message message})
-             (recur)))))
-
-     {:name name :proc p :stdin stdin :capabilities capabilities :is-default is-default})))
-
 (defn ^:private get-supported-requests
   "Get all methods supported by the given capabilities"
   [capabilities]
@@ -95,17 +58,80 @@
     (let [supported-requests (get-supported-requests (:capabilities server))]
       (some #{method} supported-requests))))
 
-(defn server-accept-method
-  "Return a list of servers who are configured to accept METHOD."
-  [method]
-  (filter #(request-supported? % method) @enabled-servers))
+(defprotocol IMultiplexer
+  (_add-server! [this name command capabilities is-default])
+  (list-servers [this])
+  (servers-for-method [this method])
+  (get-output-chan [this])
+  (stop-all-servers! [this])
+  (get-server-by-name [this name])
+  (add-server-commands! [this server-name commands])
+  (get-servers-for-command [this command])
+  (server-accept-method [this method]))
+
+(defrecord Multiplexer [server-output enabled-servers server-commands-map]
+  IMultiplexer
+  (_add-server! [_ name command capabilities is-default]
+    (let [p (apply proc/start command)
+          stdin (-> p proc/stdin io/output-stream->output-chan)
+          caps (distinct (concat capabilities [:*]))
+          server {:name name :proc p :stdin stdin :capabilities caps :is-default is-default}]
+
+      ;; Read from subprocess stdout and forward to common channel
+      (async/thread
+        (let [proc-out-chan (-> p proc/stdout io/input-stream->input-chan)]
+          (loop []
+            (when-let [message (async/<!! proc-out-chan)]
+              (async/>!! server-output {:from name :message message})
+              (recur)))))
+
+      (swap! enabled-servers conj server)
+      server))
+
+  (list-servers [_]
+    @enabled-servers)
+
+  (servers-for-method [_ method]
+    (filter #(request-supported? % method) @enabled-servers))
+
+  (get-output-chan [_]
+    server-output)
+
+  (get-server-by-name [_ name]
+    (some #(when (= (:name %) name) %) @enabled-servers))
+
+  (stop-all-servers! [_]
+    (doseq [server @enabled-servers]
+      (.destroy (:proc server))
+      (async/close! (:stdin server))))
+
+  (add-server-commands! [_ server-name commands]
+    (swap! server-commands-map assoc server-name commands))
+
+  (get-servers-for-command [_ command]
+    (->> @server-commands-map
+         (filter (fn [[_k v]] (some #{command} v)))
+         (map first)))
+
+  (server-accept-method [this method]
+    (servers-for-method this method)))
+
+(defn add-server!
+  ([multiplier name command] (_add-server! multiplier name command [] true))
+  ([multiplier name command capabilities] (_add-server! multiplier name command capabilities false))
+  ([multiplier name command capabilities is-default] (_add-server! multiplier name command capabilities is-default)))
+
+(defn create-multiplexer
+  ([] (create-multiplexer (async/chan)))
+  ([output-chan]
+   (->Multiplexer output-chan (atom []) (atom {}))))
 
 (defn configured-capabilities-from-server-name
   "Return the configured capabilities of a server by name.
-  Return nil for default server.
-  Throws an exception if server is not found."
-  [name]
-  (if-let [server (some #(when (= (:name %) name) %) @enabled-servers)]
+   Return nil for default server.
+   Throws an exception if server is not found."
+  [mux name]
+  (if-let [server (get-server-by-name mux name)]
     (when (not (:is-default server))
       (:capabilities server))
     (throw (ex-info (str "Server not found: " name) {:server-name name}))))
@@ -113,7 +139,7 @@
 (defn is-default-server
   "Check if a server is the default server by name.
   Throws an exception if server is not found."
-  [name]
-  (if-let [server (some #(when (= (:name %) name) %) @enabled-servers)]
+  [mux name]
+  (if-let [server (get-server-by-name mux name)]
     (:is-default server)
     (throw (ex-info (str "Server not found: " name) {:server-name name}))))

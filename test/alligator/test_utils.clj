@@ -3,7 +3,6 @@
    [alligator.cli :as cli]
    [alligator.core :as core]
    [alligator.methods.diagnostics :as diag]
-   [alligator.methods.execute-command :as exec-cmd]
    [alligator.multiplexer :as mux]
    [alligator.states :as states]
    [clojure.core.async :as async]
@@ -14,13 +13,10 @@
    (java.io PipedInputStream PipedOutputStream)))
 
 (defn reset-all-states [f]
-  (with-redefs [diag/diagnostics-cache (atom {})
-                exec-cmd/server-commands-map (atom {})
-                mux/enabled-servers (atom [])
-                mux/server-output (async/chan 100)
-                states/exit-chan (async/chan 1)
-                states/outstanding-client-requests (atom {})
-                states/server-request-id-mapping (atom {})]
+  (with-redefs [states/outstanding-client-requests (atom {})
+                states/server-request-id-mapping (atom {})
+                states/exit-chan (async/chan)
+                diag/diagnostics-cache (atom {})]
     (f)))
 
 ;; for mock tests 
@@ -75,6 +71,11 @@
     ;; sends nil to client stdin to close all channels
     (async/close! (:stdin client))))
 
+(defn stop-servers-and-client! [{:keys [client multiplexer]}]
+  (shutdown-client client)
+  ;; (Thread/sleep 500)
+  (mux/stop-all-servers! multiplexer))
+
 (defn start-endpoint [{:keys [stdin pending-requests request-handlers name] :as endpoint}]
   (let [notifications-chan (async/chan 100)
         loop-chan
@@ -124,11 +125,13 @@
          client-in (PipedInputStream.)
          client->alligator (PipedOutputStream. alligator-in)
          alligator->client (PipedOutputStream. client-in)
-         client (start-mock-client client-in client->alligator client-request-handlers)]
+         client (start-mock-client client-in client->alligator client-request-handlers)
+         multiplexer (mux/create-multiplexer)]
 
-     (reset! mux/enabled-servers (core/start-servers (cli/get-server-config {} server-command)))
+     (core/start-servers multiplexer (cli/get-server-config {} server-command))
 
      (async/thread
-       (core/main-event-loop alligator-in alligator->client))
+       (core/main-event-loop alligator-in alligator->client multiplexer))
 
-     {:client client})))
+     {:client client
+      :multiplexer multiplexer})))

@@ -27,13 +27,14 @@
 
 (deftest test-process-server-message-code-action
   (testing "Merge code action response using conj[oin]"
-    (let [in-chan (async/chan 10)
-          out-chan (async/chan 10)
-          server1 {:name "s1" :command "c1" :is-default true :capabilities nil}
-          server2 {:name "s2" :command "c2" :is-default false :capabilities [:code-action-provider]}]
-      (reset! mux/enabled-servers [server1 server2])
+    (let [in-chan (async/chan)
+          out-chan (async/chan)
+          m (mux/create-multiplexer)]
 
-      (methods/process-server-message "textDocument/codeAction" in-chan out-chan)
+      (mux/add-server! m "s1" ["cat"])
+      (mux/add-server! m "s2" ["cat"] [:code-action-provider])
+
+      (methods/process-server-message "textDocument/codeAction" in-chan out-chan m)
 
       (async/>!! in-chan {:from "s1"
                           :message {:jsonrpc "2.0"
@@ -49,23 +50,26 @@
         (is (= (set (:result response))
                (set [{:title "Foo" :kind "quickfix" :edit "some-file" :data {:alligator-source "s1"}}
                      {:title "Bar" :kind "refactor.inline" :command {:title "bar command" :command "bar"} :data {:key "value" :alligator-source "s2"}}
-                     {:title "Baz" :command "baz" :arguments ["1" "2"]}])))))))
+                     {:title "Baz" :command "baz" :arguments ["1" "2"]}]))))
+      (mux/stop-all-servers! m))))
 
 (deftest test-process-client-message-resolve
   (testing "Relay codeAction/resolve request to the correct server"
-    (let [server1-in-chan (async/chan 10)
-          client-out-chan (async/chan 10)
-          server1 {:name "s1" :command "c1" :stdin server1-in-chan :is-default true :capabilities nil}
-          server2 {:name "s2" :command "c2" :stdin (async/chan 1) :is-default false :capabilities [:code-action-provider]}]
-      (reset! mux/enabled-servers [server1 server2])
+    (let [alligator-out-chan (async/chan)
+          client-out-chan (async/chan)
+          m (mux/create-multiplexer alligator-out-chan)]
+      (mux/add-server! m "s1" ["cat"])
+      (mux/add-server! m "s2" ["cat"] [:code-action-provider])
 
-      (methods/process-client-message "codeAction/resolve" client-out-chan)
+      (methods/process-client-message "codeAction/resolve" client-out-chan m)
+
       (let [message {:jsonrpc "2.0"
                      :id 101
                      :method "codeAction/resolve"
                      :params {:title "Foo" :kind "quickfix" :edit "some-file" :data {:alligator-source "s1"}}}]
         (async/>!! client-out-chan message)
 
-        (let [relayed-message (async/<!! server1-in-chan)
+        (let [relayed-message (async/<!! alligator-out-chan)
               expected-message (assoc-in message [:params :data] {})]
-          (is (= expected-message relayed-message)))))))
+          (is (= expected-message (:message relayed-message)))))
+      (mux/stop-all-servers! m))))

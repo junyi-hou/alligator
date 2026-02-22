@@ -24,8 +24,7 @@
   (:require
    [alligator.methods :as methods]
    [alligator.multiplexer :as mux]
-   [alligator.states
-             :refer [outstanding-client-requests server-request-id-mapping]]
+   [alligator.states :as states]
    [clojure.core.async :as async]
    [jsonrpc4clj.coercer :as coercer]
    [taoensso.timbre :refer [debug]]))
@@ -33,7 +32,7 @@
 (derive ::response.error ::response)
 (derive ::response.result ::response)
 
-;; client -> server message 
+;; client -> server message
 
 (defn ^:private get-client-message-type
   "Get 'type' of a client messages.
@@ -48,7 +47,7 @@
     ;; update inflight-requests
     (when (= msg-type :request)
       (let [{:keys [id method]} message]
-        (swap! outstanding-client-requests assoc id method)))
+        (swap! states/outstanding-client-requests assoc id method)))
 
     (let [type (case msg-type
                  ;; notification goes to every server
@@ -70,15 +69,15 @@
    1. Creates a dedicated channel.
    2. Subscribes the channel to `client-message-publisher`.
    3. Calls the handler implementation to start its processing loop."
-  [input-chan]
+  [input-chan multiplexer]
   (let [client-message-publisher (async/pub input-chan get-client-message-type)
         all-handlers (methods/all-client-methods)]
     (doseq [method-name all-handlers]
-      (let [msg-chan (async/chan 10)]
+      (let [msg-chan (async/chan)]
         (async/sub client-message-publisher method-name msg-chan)
-        (methods/process-client-message method-name msg-chan)))))
+        (methods/process-client-message method-name msg-chan multiplexer)))))
 
-;; server -> client message 
+;; server -> client message
 
 (defn ^:private uniquify-server-request-id
   "Manipulate the request id when a server sends a request to the client.
@@ -90,8 +89,8 @@
   (let [original-id (:id message)
         new-id (str (random-uuid))]  ; Use negative IDs
     ;; Store the mapping
-    (swap! server-request-id-mapping assoc new-id {:server-name server-name
-                                                   :original-id original-id})
+    (swap! states/server-request-id-mapping assoc new-id {:server-name server-name
+                                                          :original-id original-id})
     ;; Return message with new ID
     {:message (assoc message :id new-id) :from server-name}))
 
@@ -101,16 +100,17 @@
    Returns the method name if a specialized handler exists, otherwise :generic.
    Returns :error if receives an error message."
   [{:keys [message] :as msg}]
-  (let [msg-type (coercer/input-message-type message)]
+  (let [msg-type (coercer/input-message-type message)
+        outstanding-requests @states/outstanding-client-requests]
     (debug (format "[%s->Router] type: %s, method: %s"
                    (:from msg)
                    msg-type
-                   (or (:method message) (get @outstanding-client-requests (:id message)))))
+                   (or (:method message) (get outstanding-requests (:id message)))))
     (let [type (case msg-type
                  :notification (:method message)
                  :request (:method message)
                  :response.result (or
-                                   (get @outstanding-client-requests (:id message))
+                                   (get outstanding-requests (:id message))
                                    ;; if a server respond with id that does not exist
                                    :illegal-server-message-type)
                  :response.error :error
@@ -126,20 +126,20 @@
    2. Creates a dedicated channel.
    3. Subscribes the channel to the server output channel.
    3. Calls the handler implementation to start its processing loop."
-  [output-chan]
-  (let [server-output-after-handle-request-id (async/chan 100)
+  [output-chan multiplexer]
+  (let [server-output-after-handle-request-id (async/chan)
         server-msg-publisher (async/pub server-output-after-handle-request-id get-server-message-type)
         all-handlers (methods/all-server-methods)]
 
-    ;; first uniqufy server request id
+;; first uniqufy server request id
     (async/go-loop []
-      (when-let [original-msg (async/<! mux/server-output)]
+      (when-let [original-msg (async/<! (mux/get-output-chan multiplexer))]
         (if (= (coercer/input-message-type (:message original-msg)) :request)
           (async/>! server-output-after-handle-request-id (uniquify-server-request-id original-msg))
           (async/>! server-output-after-handle-request-id original-msg))
         (recur)))
 
     (doseq [method-name all-handlers]
-      (let [msg-chan (async/chan 10)]
+      (let [msg-chan (async/chan)]
         (async/sub server-msg-publisher method-name msg-chan)
-        (methods/process-server-message method-name msg-chan output-chan)))))
+        (methods/process-server-message method-name msg-chan output-chan multiplexer)))))

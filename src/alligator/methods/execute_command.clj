@@ -5,10 +5,6 @@
    [clojure.core.async :as async]
    [taoensso.timbre :refer [warn]]))
 
-;; Keep a list of commands that server can run
-;; Structure: {:server1 [...] server2 [...] ...}
-(defonce server-commands-map (atom {}))
-
 (defn ^:private error-response
   [id data]
   {:jsonrpc "2.0"
@@ -18,23 +14,20 @@
            :data data}})
 
 (defmethod methods/process-client-message "workspace/executeCommand"
-  [_ in-chan]
+  [_ in-chan multiplexer]
   (async/go-loop []
     (when-let [message (async/<! in-chan)]
       (let [params (:params message)
             command-to-run (:command params)
-            ;; all server that supports one command
-            servers (->> @server-commands-map
-                         (filter (fn [[_k v]] (some #{command-to-run} v)))
-                         (map first))
+            servers (mux/get-servers-for-command multiplexer command-to-run)
             n-servers (count servers)]
         (cond
           (= n-servers 0) (do
-                            (async/>! mux/server-output (error-response (:id message) params))
+                            (async/>! (mux/get-output-chan multiplexer) (error-response (:id message) params))
                             (warn (format "[Router] No server is capable of running %s" command-to-run)))
-          (= n-servers 1) (let [server (some #(when (= (:name %) (first servers)) %) @mux/enabled-servers)]
+          (= n-servers 1) (let [server (mux/get-server-by-name multiplexer (first servers))]
                             (async/>! (:stdin server) message))
           :else (do
-                  (async/>! mux/server-output (error-response (:id message) params))
+                  (async/>! (mux/get-output-chan multiplexer) (error-response (:id message) params))
                   (warn (format "[Router] More than 1 server is capable of running %s" command-to-run))))))
     (recur)))

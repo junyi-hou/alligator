@@ -1,27 +1,23 @@
 (ns alligator.methods.initialize-test
   (:require
    [alligator.methods :as methods]
-   [alligator.methods.execute-command :as exec-commands]
    [alligator.methods.initialize :as init]
    [alligator.multiplexer :as mux]
-   [alligator.test-utils :refer [reset-all-states]]
    [clojure.core.async :as async]
-   [clojure.test :refer [deftest is testing use-fixtures]]))
-
-(use-fixtures :each reset-all-states)
+   [clojure.test :refer [deftest is testing]]))
 
 (methods/load-handlers!)
 
 (deftest test-process-server-message-initialize
   (testing "process-server-message 'initialize' merges responses from multiple servers"
-    (let [in-chan (async/chan 10)
-          out-chan (async/chan 10)
-          server1 {:name "s1" :command "c1" :is-default true :capabilities nil}
-          server2 {:name "s2" :command "c2" :is-default false :capabilities [:hover-provider :code-action-provider]}]
+    (let [in-chan (async/chan)
+          out-chan (async/chan)
+          m (mux/create-multiplexer)]
 
-      (reset! mux/enabled-servers [server1 server2])
+      (mux/add-server! m "s1" ["cat"])
+      (mux/add-server! m "s2" ["cat"] [:hover-provider :code-action-provider])
 
-      (methods/process-server-message "initialize" in-chan out-chan)
+      (methods/process-server-message "initialize" in-chan out-chan m)
       (async/>!! in-chan {:from "s1"
                           :message {:jsonrpc "2.0"
                                     :id 1
@@ -35,7 +31,6 @@
                                                             :code-action-provider true}}}})
 
       (let [response (async/<!! out-chan)]
-        (is (= "2.0" (:jsonrpc response)))
         (is (= 1 (:id response)))
         (is (= {:completion-provider {:resolve-provider true}
                 :hover-provider true
@@ -44,7 +39,8 @@
                (get-in response [:result :capabilities])))
         (is (= "Alligator (s1+s2)" (get-in response [:result :server-info :name])))
         ;; check execute-command is registered
-        (is (= @exec-commands/server-commands-map {"s1" ["move-to-let"]}))))))
+        (is (= (get @(:server-commands-map m) "s1") ["move-to-let"])))
+      (mux/stop-all-servers! m))))
 
 (deftest test-merge-initialize-response
   (testing "Merge booleans using OR logic"

@@ -38,7 +38,7 @@
           (join-diagnostics uri)))))
 
 (defmethod methods/process-server-message "textDocument/publishDiagnostics"
-  [_ diagnostics-chan output-chan]
+  [_ diagnostics-chan output-chan _multiplexer]
   (async/go-loop []
     (when-let [msg (async/<! diagnostics-chan)]
       (when-let [result (process-server-diagnostics msg)]
@@ -46,10 +46,10 @@
       (recur))))
 
 (defmethod methods/process-client-message "textDocument/didClose"
-  [_ client-message-chan]
+  [_ client-message-chan multiplexer]
   (async/go-loop []
     (when-let [message (async/<! client-message-chan)]
-      (doseq [server @mux/enabled-servers]
+      (doseq [server (mux/list-servers multiplexer)]
         (async/>! (:stdin server) message))
       (let [uri (get-in message [:params :textDocument :uri])]
         (swap! diagnostics-cache dissoc uri)))

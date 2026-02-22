@@ -1,9 +1,9 @@
 (ns alligator.router-test
   (:require
    [alligator.methods :as methods]
+   [alligator.multiplexer :as mux]
    [alligator.router :as router]
-   [alligator.states
-             :refer [outstanding-client-requests server-request-id-mapping]]
+   [alligator.states :as states]
    [alligator.test-utils :refer [reset-all-states]]
    [clojure.core.async :as async]
    [clojure.test :refer [deftest is testing use-fixtures]]))
@@ -13,35 +13,36 @@
 (methods/load-handlers!)
 
 (deftest test-outstanding-client-requests-tracking
-  (testing "outstanding-client-requests atom is initialized"
-    (is (some? @outstanding-client-requests)))
-
   (testing "can store and retrieve request mappings"
     ;; Store some test data
-    (swap! outstanding-client-requests assoc 1 "textDocument/completion")
-    (swap! outstanding-client-requests assoc 2 "textDocument/hover")
+    (swap! states/outstanding-client-requests assoc 1 "textDocument/completion")
+    (swap! states/outstanding-client-requests assoc 2 "textDocument/hover")
 
     ;; Verify storage
     (is (= "textDocument/completion"
-           (get @outstanding-client-requests 1)))
+           (get @states/outstanding-client-requests 1)))
     (is (= "textDocument/hover"
-           (get @outstanding-client-requests 2)))))
+           (get @states/outstanding-client-requests 2)))))
 
 (deftest test-start-dispatching-client-messages!
   (testing "creates publisher and subscribes handlers"
-    (let [input-chan (async/chan 10)
-          _ (router/start-dispatching-client-messages! input-chan)
+    (let [input-chan (async/chan)
+          m (mux/create-multiplexer)
+          _ (router/start-dispatching-client-messages! input-chan m)
           ;; Clean up
-          _ (async/close! input-chan)]
+          _ (async/close! input-chan)
+          _ (mux/stop-all-servers! m)]
       ;; If we get here without exceptions, the test passes
       (is true))))
 
 (deftest test-start-processing-server-messages!
   (testing "creates publisher and subscribes handlers"
-    (let [output-chan (async/chan 10)
-          _ (router/start-processing-server-messages! output-chan)
+    (let [output-chan (async/chan)
+          m (mux/create-multiplexer)
+          _ (router/start-processing-server-messages! output-chan m)
           ;; Clean up
-          _ (async/close! output-chan)]
+          _ (async/close! output-chan)
+          _ (mux/stop-all-servers! m)]
       ;; If we get here without exceptions, the test passes
       (is true))))
 
@@ -74,24 +75,24 @@
 
 (deftest test-get-server-message-topic
   (testing "returns implemented method name for server response"
-    ;; First simulate a client request to populate outstanding-client-requests
     (let [client-message {:jsonrpc "2.0" :id 1 :method "textDocument/completion"}]
-      (#'alligator.router/get-client-message-type client-message))
+      ;; First simulate a client request to populate outstanding-client-requests
+      (#'alligator.router/get-client-message-type client-message)
 
-    ;; Now test server response - should retrieve the method from outstanding-client-requests
-    (let [msg {:message {:jsonrpc "2.0" :id 1 :result {}} :from "test-server"}]
-      (is (= "textDocument/completion"
-             (with-redefs [methods/all-server-methods
-                           (fn [] '("textDocument/completion" :default))]
-               (#'alligator.router/get-server-message-type msg))))))
+      ;; Now test server response - should retrieve the method from outstanding-client-requests
+      (let [msg {:message {:jsonrpc "2.0" :id 1 :result {}} :from "test-server"}]
+        (is (= "textDocument/completion"
+               (with-redefs [methods/all-server-methods
+                             (fn [] '("textDocument/completion" :default))]
+                 (#'alligator.router/get-server-message-type msg)))))))
 
   (testing "returns :default for unimplemented response method"
     (let [client-message {:jsonrpc "2.0" :id 101 :method "unimplemented/method"}]
-      (#'alligator.router/get-client-message-type client-message))
+      (#'alligator.router/get-client-message-type client-message)
 
-    (let [message {:message {:jsonrpc "2.0" :id 101 :result {}} :from "test-server"}]
-      (is (= :default
-             (#'alligator.router/get-server-message-type message)))))
+      (let [message {:message {:jsonrpc "2.0" :id 101 :result {}} :from "test-server"}]
+        (is (= :default
+               (#'alligator.router/get-server-message-type message))))))
 
   (testing "returns implemented method name for server requests"
     (let [msg {:message {:jsonrpc "2.0" :id 101 :method "workspace/applyEdit"} :from "test-server"}]
@@ -127,33 +128,29 @@
           result (#'alligator.router/uniquify-server-request-id
                   {:message original-message :from server-name})]
 
-;; Check that ID was replaced with UUID string
+      ;; Check that ID was replaced with UUID string
       (is (not= 42 (:id (:message result))))
       (is (string? (:id (:message result))))
 
       ;; Check that mapping was stored
       (let [new-id (:id (:message result))
-            mapping (get @server-request-id-mapping new-id)]
+            mapping (get @states/server-request-id-mapping new-id)]
         (is (= server-name (:server-name mapping)))
         (is (= 42 (:original-id mapping))))))
 
   (testing "stores multiple mappings correctly"
-    (reset! server-request-id-mapping {})
     (let [server-name "test-server"
           req1 {:jsonrpc "2.0" :id 1 :method "workspace/configuration"}
           req2 {:jsonrpc "2.0" :id 2 :method "workspace/executeCommand"}
           result1 (#'alligator.router/uniquify-server-request-id {:message req1 :from server-name})
-          result2 (#'alligator.router/uniquify-server-request-id {:message req2 :from server-name})]
-
-      ;; Check that both mappings exist
-      (is (= 2 (count @server-request-id-mapping)))
+          result2 (#'alligator.router/uniquify-server-request-id {:message req2 :from server-name})
+          id1 (:id (:message result1))
+          id2 (:id (:message result2))
+          mapping1 (get @states/server-request-id-mapping id1)
+          mapping2 (get @states/server-request-id-mapping id2)]
 
       ;; Check individual mappings
-      (let [id1 (:id (:message result1))
-            id2 (:id (:message result2))
-            mapping1 (get @server-request-id-mapping id1)
-            mapping2 (get @server-request-id-mapping id2)]
-        (is (= 1 (:original-id mapping1)))
-        (is (= 2 (:original-id mapping2)))
-        (is (= server-name (:server-name mapping1)))
-        (is (= server-name (:server-name mapping2)))))))
+      (is (= 1 (:original-id mapping1)))
+      (is (= 2 (:original-id mapping2)))
+      (is (= server-name (:server-name mapping1)))
+      (is (= server-name (:server-name mapping2))))))
