@@ -133,7 +133,7 @@
 
 ;; first uniqufy server request id
     (async/go-loop []
-      (when-let [original-msg (async/<! (mux/get-output-chan multiplexer))]
+      (when-let [original-msg (async/<! (:server-output multiplexer))]
         (if (= (coercer/input-message-type (:message original-msg)) :request)
           (async/>! server-output-after-handle-request-id (uniquify-server-request-id original-msg))
           (async/>! server-output-after-handle-request-id original-msg))

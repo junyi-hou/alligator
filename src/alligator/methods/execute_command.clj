@@ -23,11 +23,11 @@
             n-servers (count servers)]
         (cond
           (= n-servers 0) (do
-                            (async/>! (mux/get-output-chan multiplexer) (error-response (:id message) params))
+                            (async/>! (:server-output multiplexer) (error-response (:id message) params))
                             (warn (format "[Router] No server is capable of running %s" command-to-run)))
           (= n-servers 1) (let [server (mux/get-server-by-name multiplexer (first servers))]
                             (async/>! (:stdin server) message))
           :else (do
-                  (async/>! (mux/get-output-chan multiplexer) (error-response (:id message) params))
+                  (async/>! (:server-output multiplexer) (error-response (:id message) params))
                   (warn (format "[Router] More than 1 server is capable of running %s" command-to-run)))))
       (recur))))

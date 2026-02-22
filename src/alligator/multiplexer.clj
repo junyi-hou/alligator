@@ -62,7 +62,6 @@
   (_add-server! [this name command capabilities is-default])
   (list-servers [this])
   (servers-for-method [this method])
-  (get-output-chan [this])
   (stop-all-servers! [this])
   (get-server-by-name [this name])
   (add-server-commands! [this server-name commands])
@@ -94,8 +93,7 @@
   (servers-for-method [_ method]
     (filter #(request-supported? % method) @enabled-servers))
 
-  (get-output-chan [_]
-    server-output)
+    (filter #(request-supported? % method) @(get states :enabled-servers)))
 
   (get-server-by-name [_ name]
     (some #(when (= (:name %) name) %) @enabled-servers))

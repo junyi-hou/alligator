@@ -58,7 +58,7 @@
            (assoc-in message [:params :data] (dissoc (get params :data) :alligator-source)))
 
           ;; if no server-name is found or no running server with the name, return an error
-          (async/>! (mux/get-output-chan multiplexer)
+          (async/>! (:server-output multiplexer)
                     {:jsonrpc "2.0"
                      :id (:id message)
                      :error {:code -32000

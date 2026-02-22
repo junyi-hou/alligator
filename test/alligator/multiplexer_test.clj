@@ -19,8 +19,8 @@
       (is (some #{:*} (:capabilities srv))))
 
     (testing "server-output is a valid channel"
-      (is (some? (mux/get-output-chan m)))
-      (is (instance? ManyToManyChannel (mux/get-output-chan m))))
+      (is (some? (:server-output m)))
+      (is (instance? ManyToManyChannel (:server-output m))))
 
     (testing "start-server forwards output to server-output channel"
       (let [message {:jsonrpc "2.0" :id 1 :camelCase true}]
@@ -28,7 +28,7 @@
         (async/>!! (:stdin srv) message)
       ;; Wait a bit for the message to be echoed back and processed
         (Thread/sleep 200)
-        (let [{body :message server :from} (async/poll! (mux/get-output-chan m))]
+        (let [{body :message server :from} (async/poll! (:server-output m))]
           (is (some? body))
           (is (= "test-server" server))
           (is (= 1 (:id body)))
