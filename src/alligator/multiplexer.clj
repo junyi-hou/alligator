@@ -102,8 +102,9 @@
 
   (stop-all-servers! [_]
     (doseq [server @enabled-servers]
-      (.destroy (:proc server))
-      (async/close! (:stdin server))))
+      (async/close! (:stdin server))
+      (async/close! server-output)
+      (.destroy (:proc server))))
 
   (add-server-commands! [_ server-name commands]
     (swap! server-commands-map assoc server-name commands))

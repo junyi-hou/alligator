@@ -71,11 +71,6 @@
     ;; sends nil to client stdin to close all channels
     (async/close! (:stdin client))))
 
-(defn stop-servers-and-client! [{:keys [client multiplexer]}]
-  (shutdown-client client)
-  ;; (Thread/sleep 500)
-  (mux/stop-all-servers! multiplexer))
-
 (defn start-endpoint [{:keys [stdin pending-requests request-handlers name] :as endpoint}]
   (let [notifications-chan (async/chan 100)
         loop-chan
@@ -134,4 +129,14 @@
        (core/main-event-loop alligator-in alligator->client multiplexer))
 
      {:client client
-      :multiplexer multiplexer})))
+      :multiplexer multiplexer
+      :streams [alligator-in client-in client->alligator alligator->client]})))
+
+(defn stop-servers-and-client! [{:keys [client multiplexer streams]}]
+  (shutdown-client client)
+  (mux/stop-all-servers! multiplexer)
+  (doseq [s streams]
+    (try
+      (.close s)
+      ;; Ignore already closed/broken pipes
+      (catch java.io.IOException _))))
