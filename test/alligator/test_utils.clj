@@ -4,7 +4,6 @@
    [alligator.core :as core]
    [alligator.methods.diagnostics :as diag]
    [alligator.multiplexer :as mux]
-   [alligator.states :as states]
    [clojure.core.async :as async]
    [jsonrpc4clj.coercer :as coercer]
    [jsonrpc4clj.io-chan :as io-chan]
@@ -13,10 +12,7 @@
    (java.io PipedInputStream PipedOutputStream)))
 
 (defn reset-all-states [f]
-  (with-redefs [states/outstanding-client-requests (atom {})
-                states/server-request-id-mapping (atom {})
-                states/exit-chan (async/chan)
-                diag/diagnostics-cache (atom {})]
+  (with-redefs [diag/diagnostics-cache (atom {})]
     (f)))
 
 ;; for mock tests 

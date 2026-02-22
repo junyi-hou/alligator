@@ -39,7 +39,7 @@
                (get-in response [:result :capabilities])))
         (is (= "Alligator (s1+s2)" (get-in response [:result :server-info :name])))
         ;; check execute-command is registered
-        (is (= (get @(:server-commands-map m) "s1") ["move-to-let"])))
+        (is (= (get @(get-in m [:states :server-commands-map]) "s1") ["move-to-let"])))
       (mux/stop-all-servers! m))))
 
 (deftest test-merge-initialize-response

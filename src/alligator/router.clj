@@ -1,30 +1,28 @@
 (ns alligator.router
   "Message routing system for the alligator LSP multiplexer.
 
-  This namespace handles the flow of LSP messages between clients and language servers
-  through a topic-based pub/sub system using core.async channels.
+   This namespace handles the flow of LSP messages between clients and language servers
+   through a topic-based pub/sub system using core.async channels.
 
-  Key functionality:
+   Key functionality:
 
-  - Topic-based dispatch: Messages are categorized by method names and published to
-    specific topics for handler subscription
+   - Topic-based dispatch: Messages are categorized by method names and published to
+     specific topics for handler subscription
 
-  - Client message routing: Reads raw LSP messages from input, determines message type,
-    and dispatches to appropriate handler methods.
-    - For client requests, also update the map that records the method associated with
-      each request id, this helps server message router to determine the message method.
-    - Route client responses to a special topic, :response, where id manipulations is
-      necessary to avoid id collision. See `methods/client_respond.clj` for more information.
+   - Client message routing: Reads raw LSP messages from input, determines message type,
+     and dispatches to appropriate handler methods.
+     - For client requests, also update the map that records the method associated with
+       each request id, this helps server message router to determine the message method.
+     - Route client responses to a special topic, :response, where id manipulations is
+       necessary to avoid id collision. See `methods/client_respond.clj` for more information.
 
-  - Server message routing: Processes server responses and forwards them to the correct
-    client handler.
+   - Server message routing: Processes server responses and forwards them to the correct
+     client handler.
 
-  The router maintains request-response correlations and ensures messages reach
-  their intended handlers in the multiplexed environment."
+   The router maintains request-response correlations and ensures messages reach
+   their intended handlers in the multiplexed environment."
   (:require
    [alligator.methods :as methods]
-   [alligator.multiplexer :as mux]
-   [alligator.states :as states]
    [clojure.core.async :as async]
    [jsonrpc4clj.coercer :as coercer]
    [taoensso.timbre :refer [debug]]))
@@ -41,13 +39,13 @@
    Returns :notification for notifications
    Returns :error for error messages
    For malformed messages, return :illegal-client-message-type"
-  [message]
+  [message states]
   (let [msg-type (coercer/input-message-type message)]
     (debug (format "[Client->Router] type: %s, method: %s" msg-type (:method message)))
     ;; update inflight-requests
     (when (= msg-type :request)
       (let [{:keys [id method]} message]
-        (swap! states/outstanding-client-requests assoc id method)))
+        (swap! (:outstanding-client-requests states) assoc id method)))
 
     (let [type (case msg-type
                  ;; notification goes to every server
@@ -63,14 +61,15 @@
 
 (defn start-dispatching-client-messages!
   "Automatically register and start handlers for all methods defined in
-  `methods/process-client-message`.
+   `methods/process-client-message`.
 
    For each registered method, it:
    1. Creates a dedicated channel.
    2. Subscribes the channel to `client-message-publisher`.
    3. Calls the handler implementation to start its processing loop."
   [input-chan multiplexer]
-  (let [client-message-publisher (async/pub input-chan get-client-message-type)
+  (let [states (:states multiplexer)
+        client-message-publisher (async/pub input-chan #(get-client-message-type % states))
         all-handlers (methods/all-client-methods)]
     (doseq [method-name all-handlers]
       (let [msg-chan (async/chan)]
@@ -85,12 +84,12 @@
    1. Replace the server's request ID with a unique ID (negative to avoid collision).
    2. Store the mapping so we can route the response back to the correct server.
    3. Return the modified message to send to the client"
-  [{:keys [message] server-name :from}]
+  [{:keys [message] server-name :from} server-request-id-mapping]
   (let [original-id (:id message)
         new-id (str (random-uuid))]  ; Use negative IDs
     ;; Store the mapping
-    (swap! states/server-request-id-mapping assoc new-id {:server-name server-name
-                                                          :original-id original-id})
+    (swap! server-request-id-mapping assoc new-id {:server-name server-name
+                                                   :original-id original-id})
     ;; Return message with new ID
     {:message (assoc message :id new-id) :from server-name}))
 
@@ -99,9 +98,9 @@
 
    Returns the method name if a specialized handler exists, otherwise :generic.
    Returns :error if receives an error message."
-  [{:keys [message] :as msg}]
+  [{:keys [message] :as msg} states]
   (let [msg-type (coercer/input-message-type message)
-        outstanding-requests @states/outstanding-client-requests]
+        outstanding-requests @(:outstanding-client-requests states)]
     (debug (format "[%s->Router] type: %s, method: %s"
                    (:from msg)
                    msg-type
@@ -127,15 +126,16 @@
    3. Subscribes the channel to the server output channel.
    3. Calls the handler implementation to start its processing loop."
   [output-chan multiplexer]
-  (let [server-output-after-handle-request-id (async/chan)
-        server-msg-publisher (async/pub server-output-after-handle-request-id get-server-message-type)
+  (let [states (:states multiplexer)
+        server-output-after-handle-request-id (async/chan)
+        server-msg-publisher (async/pub server-output-after-handle-request-id #(get-server-message-type % states))
         all-handlers (methods/all-server-methods)]
 
 ;; first uniqufy server request id
     (async/go-loop []
       (when-let [original-msg (async/<! (:server-output multiplexer))]
         (if (= (coercer/input-message-type (:message original-msg)) :request)
-          (async/>! server-output-after-handle-request-id (uniquify-server-request-id original-msg))
+          (async/>! server-output-after-handle-request-id (uniquify-server-request-id original-msg (:server-request-id-mapping states)))
           (async/>! server-output-after-handle-request-id original-msg))
         (recur)))
 

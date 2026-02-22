@@ -2,7 +2,6 @@
   (:require
    [alligator.methods :as methods]
    [alligator.multiplexer :as mux]
-   [alligator.states :as states]
    [clojure.core.async :as async]
    [taoensso.timbre :refer [warn]]))
 
@@ -59,11 +58,13 @@
   (async/go-loop []
     (when-let [message (async/<! input-chan)]
       (let [remapped-id (:id message)
-            {:keys [server-name original-id]} (get @states/server-request-id-mapping remapped-id)
+            states (:states multiplexer)
+            server-request-id-mapping (:server-request-id-mapping states)
+            {:keys [server-name original-id]} (get @server-request-id-mapping remapped-id)
             server (mux/get-server-by-name multiplexer server-name)]
         (when (async/>! (:stdin server) (assoc message :id original-id))
-          (swap! states/server-request-id-mapping dissoc remapped-id)))
-      (recur))))
+          (swap! server-request-id-mapping dissoc remapped-id))
+        (recur)))))
 
 ;; client error go to only the server who sends the requests
 (defmethod methods/process-client-message :error
@@ -71,10 +72,12 @@
   (async/go-loop []
     (when-let [message (async/<! input-chan)]
       (let [remapped-id (:id message)
-            {:keys [server-name original-id]} (get @states/server-request-id-mapping remapped-id)
+            states (:states multiplexer)
+            server-request-id-mapping (:server-request-id-mapping states)
+            {:keys [server-name original-id]} (get @server-request-id-mapping remapped-id)
             server (mux/get-server-by-name multiplexer server-name)]
         (when (async/>! (:stdin server) (assoc message :id original-id))
-          (swap! states/server-request-id-mapping dissoc remapped-id))
+          (swap! server-request-id-mapping dissoc remapped-id))
         (recur)))))
 
 ;; illegal client message goes to stderr only

@@ -4,7 +4,6 @@
    [alligator.methods :refer [load-handlers!]]
    [alligator.multiplexer :as mux]
    [alligator.router :as router]
-   [alligator.states :as states]
    [clojure.core.async :as async]
    [clojure.tools.cli :as cli]
    [jsonrpc4clj.io-chan :as io-chan]
@@ -51,6 +50,6 @@
       (start-servers multiplexer (get-server-config options arguments))
       (load-handlers!)
       (main-event-loop System/in System/out multiplexer)
-      (async/<!! states/exit-chan)
+      (async/<!! (get-in multiplexer [:states :exit-chan]))
       (mux/stop-all-servers! multiplexer)
       (System/exit 0))))

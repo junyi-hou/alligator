@@ -68,7 +68,7 @@
   (get-servers-for-command [this command])
   (server-accept-method [this method]))
 
-(defrecord Multiplexer [server-output enabled-servers server-commands-map]
+(defrecord Multiplexer [server-output states]
   IMultiplexer
   (_add-server! [_ name command capabilities is-default]
     (let [p (apply proc/start command)
@@ -84,31 +84,29 @@
               (async/>!! server-output {:from name :message message})
               (recur)))))
 
-      (swap! enabled-servers conj server)
+      (swap! (get states :enabled-servers) conj server)
       server))
 
   (list-servers [_]
-    @enabled-servers)
+    @(get states :enabled-servers))
 
   (servers-for-method [_ method]
-    (filter #(request-supported? % method) @enabled-servers))
-
     (filter #(request-supported? % method) @(get states :enabled-servers)))
 
   (get-server-by-name [_ name]
-    (some #(when (= (:name %) name) %) @enabled-servers))
+    (some #(when (= (:name %) name) %) @(get states :enabled-servers)))
 
   (stop-all-servers! [_]
-    (doseq [server @enabled-servers]
+    (doseq [server @(get states :enabled-servers)]
       (async/close! (:stdin server))
       (async/close! server-output)
       (.destroy (:proc server))))
 
   (add-server-commands! [_ server-name commands]
-    (swap! server-commands-map assoc server-name commands))
+    (swap! (get states :server-commands-map) assoc server-name commands))
 
   (get-servers-for-command [_ command]
-    (->> @server-commands-map
+    (->> @(get states :server-commands-map)
          (filter (fn [[_k v]] (some #{command} v)))
          (map first)))
 
@@ -123,7 +121,12 @@
 (defn create-multiplexer
   ([] (create-multiplexer (async/chan)))
   ([output-chan]
-   (->Multiplexer output-chan (atom []) (atom {}))))
+   (->Multiplexer output-chan
+                  {:enabled-servers (atom [])
+                   :server-commands-map (atom {})
+                   :outstanding-client-requests (atom {})
+                   :server-request-id-mapping (atom {})
+                   :exit-chan (async/chan)})))
 
 (defn configured-capabilities-from-server-name
   "Return the configured capabilities of a server by name.
