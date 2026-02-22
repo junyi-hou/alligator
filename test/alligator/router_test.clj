@@ -3,11 +3,8 @@
    [alligator.methods :as methods]
    [alligator.multiplexer :as mux]
    [alligator.router :as router]
-   [alligator.test-utils :refer [reset-all-states]]
    [clojure.core.async :as async]
-   [clojure.test :refer [deftest is testing use-fixtures]]))
-
-(use-fixtures :each reset-all-states)
+   [clojure.test :refer [deftest is testing]]))
 
 (methods/load-handlers!)
 

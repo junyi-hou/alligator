@@ -10,42 +10,50 @@
 
 (deftest test-process-server-diagnostics
   (testing "Merges diagnostics from different servers"
-    (let [uri "file:///test.clj"
+    (let [m (mux/create-multiplexer)
+          diagnostics-cache (get-in m [:states :diagnostics-cache])
+          uri "file:///test.clj"
           d1 {:range {:start {:line 0 :character 0} :end {:line 0 :character 5}} :message "Err 1"}
           d2 {:range {:start {:line 1 :character 0} :end {:line 1 :character 5}} :message "Err 2"}
           m1 {:from "s1" :message {:params {:uri uri :version 1 :diagnostics [d1]}}}
           m2 {:from "s2" :message {:params {:uri uri :version 1 :diagnostics [d2]}}}]
 
-      (#'diag/process-server-diagnostics m1)
-      (let [result (#'diag/process-server-diagnostics m2)]
+      (#'diag/process-server-diagnostics m1 diagnostics-cache)
+      (let [result (#'diag/process-server-diagnostics m2 diagnostics-cache)]
         (is (= uri (:uri (:params result))))
         (is (= 2 (count (:diagnostics (:params result)))))
         (is (some #(= "Err 1" (:message %)) (:diagnostics (:params result))))
         (is (some #(= "Err 2" (:message %)) (:diagnostics (:params result)))))))
 
   (testing "Respects versions - newer version overrides"
-    (let [uri "file:///version.clj"
+    (let [m (mux/create-multiplexer)
+          diagnostics-cache (get-in m [:states :diagnostics-cache])
+          uri "file:///version.clj"
           d1 {:message "Old"}
           d2 {:message "New"}
           m1 {:from "s1" :message {:params {:uri uri :version 1 :diagnostics [d1]}}}
           m2 {:from "s1" :message {:params {:uri uri :version 2 :diagnostics [d2]}}}]
 
-      (#'diag/process-server-diagnostics m1)
-      (#'diag/process-server-diagnostics m2)
-      (is (= 2 (get-in @diag/diagnostics-cache [uri "s1" :version])))
-      (is (= ["New"] (map :message (get-in @diag/diagnostics-cache [uri "s1" :diagnostics]))))))
+      (#'diag/process-server-diagnostics m1 diagnostics-cache)
+      (#'diag/process-server-diagnostics m2 diagnostics-cache)
+      (is (= 2 (get-in @diagnostics-cache [uri "s1" :version])))
+      (is (= ["New"] (map :message (get-in @diagnostics-cache [uri "s1" :diagnostics]))))))
 
   (testing "Ignores older versions"
-    (let [uri "file:///version-old.clj"
+    (let [m (mux/create-multiplexer)
+          diagnostics-cache (get-in m [:states :diagnostics-cache])
+          uri "file:///version-old.clj"
           d1 {:message "Old"}
           d2 {:message "New"}
           m1 {:from "s1" :message {:params {:uri uri :version 2 :diagnostics [d2]}}}
           m2 {:from "s1" :message {:params {:uri uri :version 1 :diagnostics [d1]}}}]
 
-      (#'diag/process-server-diagnostics m1)
-      (#'diag/process-server-diagnostics m2)
-      (is (= 2 (get-in @diag/diagnostics-cache [uri "s1" :version])))
-      (is (= ["New"] (map :message (get-in @diag/diagnostics-cache [uri "s1" :diagnostics])))))))
+      (#'diag/process-server-diagnostics m1 diagnostics-cache)
+      (#'diag/process-server-diagnostics m2 diagnostics-cache)
+      (is (= 2 (get-in @diagnostics-cache [uri "s1" :version])))
+      (is (= ["New"] (map :message (get-in @diagnostics-cache [uri "s1" :diagnostics])))))))
+
+
 
 (deftest test-process-server-message-diagnostic
   (testing "process-server-message 'textDocument/publishDiagnostics' merges and sends to output-chan"
@@ -80,12 +88,13 @@
 (deftest test-process-client-message-did-close
   (testing "textDocument/didClose notification deletes diagnostic-cache entry"
     (let [m (mux/create-multiplexer)
+          diagnostics-cache (get-in m [:states :diagnostics-cache])
           uri "file:///closed.clj"
           in-chan (async/chan 10)]
 
       ;; Pre-populate cache
-      (reset! diag/diagnostics-cache {uri {"s1" {:version 1 :diagnostics []}}})
-      (is (contains? @diag/diagnostics-cache uri))
+      (reset! diagnostics-cache {uri {"s1" {:version 1 :diagnostics []}}})
+      (is (contains? @diagnostics-cache uri))
 
       (methods/process-client-message "textDocument/didClose" in-chan m)
 
@@ -95,5 +104,5 @@
       ;; Need a small timeout or wait for the side effect as process-client-message
       ;; usually runs a go-loop that might take a tiny bit of time
       (Thread/sleep 10)
-      (is (not (contains? @diag/diagnostics-cache uri)))
+      (is (not (contains? @diagnostics-cache uri)))
       (mux/stop-all-servers! m))))

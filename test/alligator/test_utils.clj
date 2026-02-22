@@ -2,7 +2,6 @@
   (:require
    [alligator.cli :as cli]
    [alligator.core :as core]
-   [alligator.methods.diagnostics :as diag]
    [alligator.multiplexer :as mux]
    [clojure.core.async :as async]
    [jsonrpc4clj.coercer :as coercer]
@@ -10,10 +9,6 @@
    [taoensso.timbre :as timbre])
   (:import
    (java.io PipedInputStream PipedOutputStream)))
-
-(defn reset-all-states [f]
-  (with-redefs [diag/diagnostics-cache (atom {})]
-    (f)))
 
 ;; for mock tests 
 

@@ -3,10 +3,8 @@
    [alligator.methods :as methods]
    [alligator.mock.code-actions.server :as server]
    [alligator.test-utils :as utils]
-   [clojure.test :refer [deftest is testing use-fixtures]]
+   [clojure.test :refer [deftest is testing]]
    [taoensso.timbre :as timbre]))
-
-(use-fixtures :each utils/reset-all-states)
 
 (methods/load-handlers!)
 

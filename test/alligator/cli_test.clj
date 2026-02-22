@@ -1,11 +1,8 @@
 (ns alligator.cli-test
   (:require
    [alligator.cli :as cli]
-   [alligator.test-utils :refer [reset-all-states]]
    [clojure.java.io :as io]
-   [clojure.test :refer [deftest is testing use-fixtures]]))
-
-(use-fixtures :each reset-all-states)
+   [clojure.test :refer [deftest is testing]]))
 
 (deftest test-get-server-config
   (testing "correctly parse server config from cli arguments"

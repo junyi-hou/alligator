@@ -122,11 +122,12 @@
   ([] (create-multiplexer (async/chan)))
   ([output-chan]
    (->Multiplexer output-chan
-                  {:enabled-servers (atom [])
-                   :server-commands-map (atom {})
-                   :outstanding-client-requests (atom {})
-                   :server-request-id-mapping (atom {})
-                   :exit-chan (async/chan)})))
+                   {:enabled-servers (atom [])
+                    :server-commands-map (atom {})
+                    :outstanding-client-requests (atom {})
+                    :server-request-id-mapping (atom {})
+                    :exit-chan (async/chan)
+                    :diagnostics-cache (atom {})})))
 
 (defn configured-capabilities-from-server-name
   "Return the configured capabilities of a server by name.
