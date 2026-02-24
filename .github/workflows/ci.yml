@@ -28,11 +28,11 @@ jobs:
           direnv allow .
           direnv export gha > "$GITHUB_ENV"
 
+      - name: Run unit tests
+        run: clojure -M:test -m cognitect.test-runner -e :mock
+
       # encounter strange race condition when running those mock tests on github
       # disable them and do mock tests locally for now
-
-      # - name: Run unit tests
-      #   run: clojure -M:test -m cognitect.test-runner -e :mock
 
       # - name: Run basic mock test
       #   run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/basic/
