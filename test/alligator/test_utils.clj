@@ -130,7 +130,7 @@
   ([server-command] (start-servers-and-client server-command nil))
   ([server-command client-request-handlers]
    (let [alligator-args (into ["clj" "-M:test" "-m" "alligator.core" "--debug"] server-command)
-         process (apply proc/start {:stderr :inherit} alligator-args)
+         process (apply proc/start {:err :inherit} alligator-args)
          alligator-stdout (proc/stdout process)
          alligator-stdin (proc/stdin process)
          client (start-mock-client alligator-stdout alligator-stdin client-request-handlers)]
