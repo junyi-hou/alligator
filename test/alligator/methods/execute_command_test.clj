@@ -6,8 +6,6 @@
    [clojure.test :refer [deftest is testing]]
    [taoensso.timbre :as timbre]))
 
-(timbre/merge-config! {:min-level :debug})
-
 (methods/load-handlers!)
 
 (deftest test-execute-command-relay
@@ -33,50 +31,56 @@
         (is (= "s1" (:from relayed)))
         (is (= "command.one" (get-in relayed [:message :params :command])))
         (is (= 1 (get-in relayed [:message :id]))))
+      (async/close! in-chan)
       (mux/stop-all-servers! m)))
 
   (testing "Returns error if no server supports the command"
-    (let [in-chan (async/chan)
-          out-chan (async/chan)
-          m (mux/create-multiplexer out-chan)]
+    ;; with-redefs on the root log function to suppress warnings in async blocks
+    (with-redefs [taoensso.timbre/-log! (fn [& _] nil)]
+      (let [in-chan (async/chan)
+            out-chan (async/chan)
+            m (mux/create-multiplexer out-chan)]
 
-      (mux/add-server! m "s1" ["cat"])
-      (mux/add-server-commands! m "s1" ["command.one"])
+        (mux/add-server! m "s1" ["cat"])
+        (mux/add-server-commands! m "s1" ["command.one"])
 
-      (methods/process-client-message "workspace/executeCommand" in-chan m)
+        (methods/process-client-message "workspace/executeCommand" in-chan m)
 
-      (async/>!! in-chan {:jsonrpc "2.0"
-                          :id 2
-                          :method "workspace/executeCommand"
-                          :params {:command "unknown.command"}})
+        (async/>!! in-chan {:jsonrpc "2.0"
+                            :id 2
+                            :method "workspace/executeCommand"
+                            :params {:command "unknown.command"}})
 
-      (let [response (async/<!! out-chan)]
-        (is (= 2 (:id response)))
-        (is (contains? response :error))
-        (is (= "Could not find the right server to relay the workspace/executeCommand request"
-               (get-in response [:error :message]))))
-      (mux/stop-all-servers! m)))
+        (let [response (async/<!! out-chan)]
+          (is (= 2 (:id response)))
+          (is (contains? response :error))
+          (is (= "Could not find the right server to relay the workspace/executeCommand request"
+                 (get-in response [:error :message]))))
+        (async/close! in-chan)
+        (mux/stop-all-servers! m))))
 
   (testing "Returns error if multiple servers support the command"
-    (let [in-chan (async/chan 10)
-          out-chan (async/chan 10)
-          m (mux/create-multiplexer out-chan)]
+    (with-redefs [taoensso.timbre/-log! (fn [& _] nil)]
+      (let [in-chan (async/chan 10)
+            out-chan (async/chan 10)
+            m (mux/create-multiplexer out-chan)]
 
-      (mux/add-server! m "s1" ["cat"])
-      (mux/add-server! m "s2" ["cat"])
-      (mux/add-server-commands! m "s1" ["shared.command"])
-      (mux/add-server-commands! m "s2" ["shared.command"])
+        (mux/add-server! m "s1" ["cat"])
+        (mux/add-server! m "s2" ["cat"])
+        (mux/add-server-commands! m "s1" ["shared.command"])
+        (mux/add-server-commands! m "s2" ["shared.command"])
 
-      (methods/process-client-message "workspace/executeCommand" in-chan m)
+        (methods/process-client-message "workspace/executeCommand" in-chan m)
 
-      (async/>!! in-chan {:jsonrpc "2.0"
-                          :id 3
-                          :method "workspace/executeCommand"
-                          :params {:command "shared.command"}})
+        (async/>!! in-chan {:jsonrpc "2.0"
+                            :id 3
+                            :method "workspace/executeCommand"
+                            :params {:command "shared.command"}})
 
-      (let [response (async/<!! out-chan)]
-        (is (= 3 (:id response)))
-        (is (contains? response :error))
-        (is (= "Could not find the right server to relay the workspace/executeCommand request"
-               (get-in response [:error :message]))))
-      (mux/stop-all-servers! m))))
+        (let [response (async/<!! out-chan)]
+          (is (= 3 (:id response)))
+          (is (contains? response :error))
+          (is (= "Could not find the right server to relay the workspace/executeCommand request"
+                 (get-in response [:error :message]))))
+        (async/close! in-chan)
+        (mux/stop-all-servers! m)))))
