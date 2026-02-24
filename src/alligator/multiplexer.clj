@@ -84,29 +84,29 @@
               (async/>!! server-output {:from name :message message})
               (recur)))))
 
-      (swap! (get states :enabled-servers) conj server)
+      (swap! (:enabled-servers states) conj server)
       server))
 
   (list-servers [_]
-    @(get states :enabled-servers))
+    @(:enabled-servers states))
 
   (servers-for-method [_ method]
-    (filter #(request-supported? % method) @(get states :enabled-servers)))
+    (filter #(request-supported? % method) @(:enabled-servers states)))
 
   (get-server-by-name [_ name]
-    (some #(when (= (:name %) name) %) @(get states :enabled-servers)))
+    (some #(when (= (:name %) name) %) @(:enabled-servers states)))
 
   (stop-all-servers! [_]
-    (doseq [server @(get states :enabled-servers)]
+    (doseq [server @(:enabled-servers states)]
       (async/close! (:stdin server))
       (async/close! server-output)
       (.destroy (:proc server))))
 
   (add-server-commands! [_ server-name commands]
-    (swap! (get states :server-commands-map) assoc server-name commands))
+    (swap! (:server-commands-map states) assoc server-name commands))
 
   (get-servers-for-command [_ command]
-    (->> @(get states :server-commands-map)
+    (->> @(:server-commands-map states)
          (filter (fn [[_k v]] (some #{command} v)))
          (map first)))
 
@@ -122,12 +122,12 @@
   ([] (create-multiplexer (async/chan)))
   ([output-chan]
    (->Multiplexer output-chan
-                   {:enabled-servers (atom [])
-                    :server-commands-map (atom {})
-                    :outstanding-client-requests (atom {})
-                    :server-request-id-mapping (atom {})
-                    :exit-chan (async/chan)
-                    :diagnostics-cache (atom {})})))
+                  {:enabled-servers (atom [])
+                   :server-commands-map (atom {})
+                   :outstanding-client-requests (atom {})
+                   :server-request-id-mapping (atom {})
+                   :exit-chan (async/chan)
+                   :diagnostics-cache (atom {})})))
 
 (defn configured-capabilities-from-server-name
   "Return the configured capabilities of a server by name.
