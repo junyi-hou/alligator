@@ -1,16 +1,10 @@
 (ns alligator.test-utils
   (:require
-   [alligator.cli :as cli]
-   [alligator.core :as core]
-   [alligator.multiplexer :as mux]
    [clojure.core.async :as async]
+   [clojure.java.process :as proc]
    [jsonrpc4clj.coercer :as coercer]
    [jsonrpc4clj.io-chan :as io-chan]
-   [taoensso.timbre :as timbre])
-  (:import
-   (java.io PipedInputStream PipedOutputStream)))
-
-;; for mock tests 
+   [taoensso.timbre :as timbre]))
 
 (defn request
   "Send request from ENDPOINT to its stdout and expecting to receive a response in the
@@ -31,7 +25,7 @@
 
      (swap! pending-requests assoc id response-chan)
      (swap! next-id inc)
-     (let [timeout-chan (async/timeout 15000)
+     (let [timeout-chan (async/timeout 5000)
            [val port] (async/alts!! [response-chan timeout-chan])]
        (if (= port timeout-chan)
          (do
@@ -58,9 +52,7 @@
 
 (defn shutdown-client [client]
   (when (request client "shutdown")
-    (notify client "exit")
-    ;; sends nil to client stdin to close all channels
-    (async/close! (:stdin client))))
+    (notify client "exit")))
 
 (defn start-endpoint [{:keys [stdin pending-requests request-handlers name] :as endpoint}]
   (let [notifications-chan (async/chan 100)
@@ -95,11 +87,41 @@
         (assoc :notification-chan notifications-chan)
         (assoc :loop-chan loop-chan))))
 
+(defn ^:private safe-out-stream [^java.io.OutputStream os]
+  (proxy [java.io.OutputStream] []
+    (write
+      ([b]
+       (try
+         (if (integer? b)
+           (.write os ^int b)
+           (.write os ^bytes b))
+         (catch java.io.IOException _)))
+      ([b off len]
+       (try
+         (.write os ^bytes b ^int off ^int len)
+         (catch java.io.IOException _))))
+    (flush []
+      (try (.flush os) (catch java.io.IOException _)))
+    (close []
+      (try (.close os) (catch java.io.IOException _)))))
+
+(defn ^:private safe-in-stream [^java.io.InputStream is]
+  (proxy [java.io.InputStream] []
+    (read
+      ([]
+       (try (.read is) (catch java.io.IOException _ -1)))
+      ([b]
+       (try (.read is ^bytes b) (catch java.io.IOException _ -1)))
+      ([b off len]
+       (try (.read is ^bytes b ^int off ^int len) (catch java.io.IOException _ -1))))
+    (close []
+      (try (.close is) (catch java.io.IOException _)))))
+
 (defn ^:private start-mock-client
   [in-stream out-stream request-handlers]
   (start-endpoint {:name "CLIENT"
-                   :stdin (io-chan/input-stream->input-chan in-stream)
-                   :stdout (io-chan/output-stream->output-chan out-stream)
+                   :stdin (io-chan/input-stream->input-chan (safe-in-stream in-stream))
+                   :stdout (io-chan/output-stream->output-chan (safe-out-stream out-stream))
                    :next-id (atom 1)
                    :pending-requests (atom {})
                    :request-handlers request-handlers}))
@@ -107,27 +129,17 @@
 (defn start-servers-and-client
   ([server-command] (start-servers-and-client server-command nil))
   ([server-command client-request-handlers]
-   (let [alligator-in (PipedInputStream.)
-         client-in (PipedInputStream.)
-         client->alligator (PipedOutputStream. alligator-in)
-         alligator->client (PipedOutputStream. client-in)
-         client (start-mock-client client-in client->alligator client-request-handlers)
-         multiplexer (mux/create-multiplexer)]
-
-     (core/start-servers multiplexer (cli/get-server-config {} server-command))
-
-     (async/thread
-       (core/main-event-loop alligator-in alligator->client multiplexer))
-
+   (let [alligator-args (into ["clj" "-M:test" "-m" "alligator.core" "--debug"] server-command)
+         process (apply proc/start {:stderr :inherit} alligator-args)
+         alligator-stdout (proc/stdout process)
+         alligator-stdin (proc/stdin process)
+         client (start-mock-client alligator-stdout alligator-stdin client-request-handlers)]
      {:client client
-      :multiplexer multiplexer
-      :streams [alligator-in client-in client->alligator alligator->client]})))
+      :server process})))
 
-(defn stop-servers-and-client! [{:keys [client multiplexer streams]}]
+(defn stop-servers-and-client! [{:keys [client server]}]
   (shutdown-client client)
-  (mux/stop-all-servers! multiplexer)
-  (doseq [s streams]
-    (try
-      (.close s)
-      ;; Ignore already closed/broken pipes
-      (catch java.io.IOException _))))
+  (async/close! (:stdin client))
+  (async/close! (:stdout client))
+  (when (.isAlive server)
+    (.destroy server)))

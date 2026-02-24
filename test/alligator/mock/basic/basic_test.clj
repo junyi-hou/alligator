@@ -8,8 +8,8 @@
 
 (methods/load-handlers!)
 
-(deftest basic-integration-test
-  (let [{:keys [client multiplexer]} (utils/start-servers-and-client ["--" "clj -M:test -m alligator.mock.basic.server" "--default"])]
+(deftest ^:mock basic-integration-test
+  (let [{:keys [client] :as test-objects} (utils/start-servers-and-client ["--" "clj -M:test -m alligator.mock.basic.server" "--default"])]
 
     ;; 1. Initialize Handshake
     (testing "Handshake"
@@ -31,4 +31,4 @@
         (is (get-in notif [:params :diagnostics]) server/diagnostics-item)
         (is (get-in notif [:params :uri]) "file:///test.clj")))
 
-    (utils/stop-servers-and-client! {:client client :multiplexer multiplexer})))
+    (utils/stop-servers-and-client! test-objects)))

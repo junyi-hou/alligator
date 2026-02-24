@@ -7,19 +7,15 @@
 
 (methods/load-handlers!)
 
-(deftest multi-server-integration-test
-  (let [{:keys [client multiplexer]} (utils/start-servers-and-client
-                                      ["--" "clj -M:test -m alligator.mock.basic.server" "--default"
-                                       ;; alligator identifies servers using their executable, and two servers with the same name
-                                       ;; will name collision
-                                       "--" "clojure -M:test -m alligator.mock.basic.server" "-c" "completion-provider"])]
-
-    (testing "successfully launch 2 servers"
-      (is (= (count (mux/list-servers multiplexer)) 2)))
+(deftest ^:mock multi-server-integration-test
+  (let [{:keys [client] :as test-objects}
+        (utils/start-servers-and-client
+         ["--" "clj -M:test -m alligator.mock.basic.server" "--default"
+          "--" "clojure -M:test -m alligator.mock.basic.server" "-c" "completion-provider"])]
 
     (testing "Handshake"
       (let [resp (utils/request client "initialize" {:capabilities {} :root-uri "file:///"})]
         (is (= "Alligator (clj+clojure)" (get-in resp [:result :server-info :name])))
         (utils/notify client "initialized")))
 
-    (utils/stop-servers-and-client! {:client client :multiplexer multiplexer})))
+    (utils/stop-servers-and-client! test-objects)))

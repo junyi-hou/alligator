@@ -7,13 +7,12 @@ We use `clojure.test` with the Cognitect Labs test runner.
 
 - **Run all unit tests:**
   ```bash
-  clojure -T:build test
+  clojure -M:test -m cognitect.test-runner -e :mock
 
 - **Run mock integration tests:**
   ```bash
-  test/mock/test_runner.sh <SUITE-NAME>
+  clojure -M:test -m cognitect.test-runner -d test/alligator/mock/
   ```
-  *Suites are located in `test/mock/` (e.g., `basic`, `multiservers`).*
 ### Linting and Formatting
 We use `clojure-lsp` for linting and formatting.
 
