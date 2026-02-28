@@ -42,12 +42,13 @@
   (uber opts)
   (let [args ["native-image"
               "-jar" (str "../" uber-file)
-              (format "-H:Name=alligator-%s-%s"
+              (format "-H:Name=alligator-%s-%s-%s"
                       (-> "os.name"
                           System/getProperty
                           .toLowerCase
                           (.replaceAll " " ""))
-                      (-> "os.arch" System/getProperty .toLowerCase))
+                      (-> "os.arch" System/getProperty .toLowerCase)
+                      version)
               "--no-fallback"
               "--initialize-at-build-time"
               "--report-unsupported-elements-at-runtime"]]
