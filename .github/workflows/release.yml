@@ -1,0 +1,52 @@
+name: release
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: ["macos-latest", "ubuntu-latest"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Set up environment
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'graalvm'
+          java-version: '21'
+
+      - name: Install direnv
+        run: |
+          curl -sfL https://direnv.net/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Load environment variables
+        run: |
+          direnv allow .
+          direnv export gha > "$GITHUB_ENV"
+
+      - name: Run unit tests
+        run: clojure -M:test -m cognitect.test-runner -e :mock
+
+      - name: Build binary
+        run: clojure -T:build binary
+
+      - name: Prepare Release Artifacts
+        id: artifacts
+        run: |
+          VERSION=$(cat resources/version.edn | grep -oE '"[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?"' | tr -d '"')
+          OS_NAME=$(java -XshowSettings:properties -version 2>&1 | grep "os.name" | awk '{print $3}' | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+          OS_ARCH=$(java -XshowSettings:properties -version 2>&1 | grep "os.arch" | awk '{print $3}' | tr '[:upper:]' '[:lower:]')
+          ARTIFACT_NAME="alligator-$OS_NAME-$OS_ARCH-$VERSION"
+          echo "artifact_path=target/$ARTIFACT_NAME" >> $GITHUB_OUTPUT
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
+        with:
+          files: ${{ steps.artifacts.outputs.artifact_path }}
