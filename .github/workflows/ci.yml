@@ -9,7 +9,7 @@ jobs:
   unit-test:
     strategy:
       matrix:
-        os: ["macos-latest", "ubantu-latest"]
+        os: ["macos-latest", "ubuntu-latest"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository code
