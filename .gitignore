@@ -4,3 +4,4 @@
 .cpcache/
 .clj-kondo/
 .agent-shell/
+target/

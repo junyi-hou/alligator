@@ -3,10 +3,12 @@
   (:require [clojure.tools.build.api :as b]
             [clojure.java.shell :refer [sh]]
             [clojure.edn :as edn]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [clojure.string :as str]))
 
 (def version (:version (edn/read-string (slurp (io/resource "version.edn")))))
 (def class-dir "target/classes")
+(def uber-file (format "target/alligator-%s-standalone.jar"  version))
 
 (defn test "Run all the tests." [opts]
   (let [basis    (b/create-basis {:aliases [:test]})
@@ -18,24 +20,39 @@
     (when-not (zero? exit) (throw (ex-info "Tests failed" {}))))
   opts)
 
-;; TODO: better templating below
-;; (defn- uber-opts [opts]
-;;   (assoc opts
-;;          :lib lib :main main
-;;          :uber-file (format "target/%s-%s.jar" lib version)
-;;          :basis (b/create-basis {})
-;;          :class-dir class-dir
-;;          :src-dirs ["src"]
-;;          :ns-compile [main]))
+(defn- uber-opts [opts]
+  (b/delete {:path "target"})
+  (assoc opts
+         :main 'alligator.core
+         :uber-file uber-file
+         :basis (b/create-basis {})
+         :class-dir class-dir
+         :src-dirs ["src" "resources"]
+         :ns-compile '[alligator.core]))
 
-;; (defn ci "Run the CI pipeline of tests (and build the uberjar)." [opts]
-;;   (test opts)
-;;   (b/delete {:path "target"})
-;;   (let [opts (uber-opts opts)]
-;;     (println "\nCopying source...")
-;;     (b/copy-dir {:src-dirs ["resources" "src"] :target-dir class-dir})
-;;     (println (str "\nCompiling " main "..."))
-;;     (b/compile-clj opts)
-;;     (println "\nBuilding JAR...")
-;;     (b/uber opts))
-;;   opts)
+(defn uber [opts]
+  (println "Building uberjar...")
+  (let [opts (uber-opts opts)]
+    (b/copy-dir {:src-dirs ["resources" "src"] :target-dir class-dir})
+    (b/compile-clj opts)
+    (b/uber opts))
+  opts)
+
+(defn binary [opts]
+  (uber opts)
+  (let [args ["native-image"
+              "-jar" (str "../" uber-file)
+              (format "-H:Name=alligator-%s-%s"
+                      (-> "os.name"
+                          System/getProperty
+                          .toLowerCase
+                          (.replaceAll " " ""))
+                      (-> "os.arch" System/getProperty .toLowerCase))
+              "--no-fallback"
+              "--initialize-at-build-time"
+              "--report-unsupported-elements-at-runtime"]]
+    (let [{:keys [exit out err]} (sh "bash" "-c" (str/join " " args) :dir "target")]
+      (println out)
+      (if (zero? exit)
+        (println "Native binary created successfully!")
+        (do (println "Build failed:") (println err))))))
