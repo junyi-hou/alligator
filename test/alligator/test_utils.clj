@@ -54,6 +54,19 @@
   (when (request client "shutdown")
     (notify client "exit")))
 
+(defn await-notification
+  "Keep reading from the notification channel of ENDPOINT until a message matches PRED or timeout.
+   Returns the matching message or nil if timed out."
+  ([endpoint pred] (await-notification endpoint pred 2000))
+  ([{:keys [notification-chan]} pred timeout-ms]
+   (let [timeout-chan (async/timeout timeout-ms)]
+     (loop []
+       (let [[msg channel] (async/alts!! [notification-chan timeout-chan])]
+         (cond
+           (= channel timeout-chan) nil
+           (pred msg) msg
+           :else (recur)))))))
+
 (defn start-endpoint [{:keys [stdin pending-requests request-handlers name] :as endpoint}]
   (let [notifications-chan (async/chan 100)
         loop-chan
