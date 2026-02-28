@@ -33,6 +33,19 @@ We use `clojure-lsp` for linting and formatting.
   ```
   *To apply changes:* `clojure-lsp clean-ns`
 
+### Building
+We use `tools.build` for building the project.
+
+- **Build uberjar:**
+  ```bash
+  clojure -T:build uber
+  ```
+
+- **Build binary:**
+  ```bash
+  clojure -T:build binary
+  ```
+
 ---
 
 ## Code Style Guidelines
@@ -40,8 +53,7 @@ We use `clojure-lsp` for linting and formatting.
 ### Namespaces and Imports
 - **Naming:** Use `alligator.<module>` (e.g., `alligator.router`).
 - **Imports:** 
-  - Use `:require` with `:as` for most dependencies.
-  - Use `:refer` only for common test functions (`deftest`, `is`, etc.) or internal DSLs.
+  - Use `:require` with `:as` for dependencies.
   - Keep requirements sorted alphabetically.
 
 ```clojure
@@ -58,18 +70,16 @@ We use `clojure-lsp` for linting and formatting.
   - `process-client-message`: Client -> Servers.
   - `process-server-message`: Servers -> Client.
 - **Dynamic Loading:** Handlers in `src/alligator/methods/` are dynamically loaded at startup. When adding a new method handler, create a new file in that directory.
-- **State:** Use `atoms` for shared state (e.g., `alligator.states`). Keep state minimal and centralized.
 
 ### Naming Conventions
 - **Functions/Variables:** `kebab-case`.
-- **Private Functions:** Use `defn-` or `^:private` metadata.
-- **Predicates:** Suffix with `?` (e.g., `valid-request?`).
+- **Private Functions:** Use `^:private` metadata.
 - **Impure Functions:** Suffix with `!` if they have side effects (e.g., `load-handlers!`).
 
 ###  Error Handling
 - Use `try/catch` for localized error handling.
 - Use `ex-info` and `ex-data` to provide context in exceptions.
-- Log errors using the `clojure.tools.logging` namespace.
+- Log errors using `taoensso.timbre/error`
 
 ### Types and Coercion
 - We use `jsonrpc4clj` for JSON-RPC message handling.
