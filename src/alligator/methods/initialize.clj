@@ -6,7 +6,8 @@
    [clojure.core.async :as async]
    [clojure.edn :as edn]
    [clojure.java.io :as io]
-   [clojure.string :refer [join]]))
+   [clojure.string :refer [join]]
+   [taoensso.timbre :refer [debug]]))
 
 (defmulti ^:private do-merge
   "Function that merge a capability key."
@@ -107,17 +108,18 @@
                   (format "Alligator (%s)"))]
     (async/go-loop [responses []]
       (when-let [msg (async/<! in-chan)]
-        ;; ;; update accept-command-list
+        ;; update accept-command-list
         (when-let [accepted-commands (get-in msg [:message :result :capabilities :execute-command-provider :commands])]
           (mux/add-server-commands! multiplexer (:from msg) accepted-commands))
 
         ;; update response list
         (let [new-responses (conj responses msg)]
           (if (>= (count new-responses) num-servers)
-            (async/>! out-chan
-                      {:jsonrpc "2.0"
-                       :id 1
-                       :result {:capabilities (apply merge-server-capabilities multiplexer new-responses)
-                                :server-info {:name name
-                                              :version version}}})
+            (let [merged-message {:jsonrpc "2.0"
+                                  :id 1
+                                  :result {:capabilities (apply merge-server-capabilities multiplexer new-responses)
+                                           :server-info {:name name
+                                                         :version version}}}]
+              (debug (format "[Router->Client] %s" merged-message))
+              (async/>! out-chan merged-message))
             (recur new-responses)))))))

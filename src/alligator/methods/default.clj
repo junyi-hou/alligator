@@ -3,14 +3,15 @@
    [alligator.methods :as methods]
    [alligator.multiplexer :as mux]
    [clojure.core.async :as async]
-   [taoensso.timbre :refer [warn]]))
+   [taoensso.timbre :refer [warn debug]]))
 
 ;; unspecified server message (notification, request, or responses) goes directly to
 ;; stdout
 (defmethod methods/process-server-message :default
   [_ msg-chan output-chan _]
   (async/go-loop []
-    (when-let [{:keys [message]} (async/<! msg-chan)]
+    (when-let [{:keys [from message]} (async/<! msg-chan)]
+      (debug (format "[Router->Client] %s" message))
       (async/>! output-chan message)
       (recur))))
 
@@ -18,7 +19,8 @@
 (defmethod methods/process-server-message :error
   [_ msg-chan output-chan _]
   (async/go-loop []
-    (when-let [{:keys [message]} (async/<! msg-chan)]
+    (when-let [{:keys [from message]} (async/<! msg-chan)]
+      (debug (format "[Router->Client] %s" message))
       (async/>! output-chan message)
       (recur))))
 
@@ -39,6 +41,7 @@
     (when-let [message (async/<! input-chan)]
       (let [servers (mux/servers-for-method multiplexer (:method message))]
         (doseq [server servers]
+          (debug (format "[Router->%s] %s" (:name server) message))
           (async/>! (:stdin server) message)))
       (recur))))
 
@@ -49,6 +52,7 @@
     (when-let [message (async/<! input-chan)]
       (let [servers (mux/list-servers multiplexer)]
         (doseq [server servers]
+          (debug (format "[Router->%s] %s" (:name server) message))
           (async/>! (:stdin server) message)))
       (recur))))
 
@@ -62,8 +66,10 @@
             server-request-id-mapping (:server-request-id-mapping states)
             {:keys [server-name original-id]} (get @server-request-id-mapping remapped-id)
             server (mux/get-server-by-name multiplexer server-name)]
-        (when (async/>! (:stdin server) (assoc message :id original-id))
-          (swap! server-request-id-mapping dissoc remapped-id))
+        (let [sent-message (assoc message :id original-id)]
+          (debug (format "[Router->%s] %s" server-name sent-message))
+          (when (async/>! (:stdin server) sent-message)
+            (swap! server-request-id-mapping dissoc remapped-id)))
         (recur)))))
 
 ;; client error go to only the server who sends the requests
@@ -76,8 +82,10 @@
             server-request-id-mapping (:server-request-id-mapping states)
             {:keys [server-name original-id]} (get @server-request-id-mapping remapped-id)
             server (mux/get-server-by-name multiplexer server-name)]
-        (when (async/>! (:stdin server) (assoc message :id original-id))
-          (swap! server-request-id-mapping dissoc remapped-id))
+        (let [sent-message (assoc message :id original-id)]
+          (debug (format "[Router->%s] %s" server-name sent-message))
+          (when (async/>! (:stdin server) sent-message)
+            (swap! server-request-id-mapping dissoc remapped-id)))
         (recur)))))
 
 ;; illegal client message goes to stderr only

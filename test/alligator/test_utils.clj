@@ -17,11 +17,6 @@
          msg {:jsonrpc "2.0" :id id :method method :params params}
          response-chan (async/promise-chan)]
      (async/>!! stdout msg)
-     (timbre/debug (format "[%s] sending %s with %s (id: %s)"
-                           name
-                           method
-                           (or params "no param")
-                           id))
 
      (swap! pending-requests assoc id response-chan)
      (swap! next-id inc)
@@ -36,19 +31,17 @@
 (defn notify
   "Send notification using ENDPOINT's stdout. Log the outgoing notification in the stderr."
   ([endpoint method] (notify endpoint method nil))
-  ([{:keys [stdout name]} method params]
+  ([{:keys [stdout]} method params]
    (let [msg {:jsonrpc "2.0" :method method :params params}]
 
-     (async/>!! stdout msg)
-     (timbre/debug (format "[%s] sending %s with %s" name method (or params "no param"))))))
+     (async/>!! stdout msg))))
 
 (defn respond
   "Send response with RESULT to an request with ID."
   ([endpoint id] (respond endpoint id nil))
-  ([{:keys [stdout name]} id result]
+  ([{:keys [stdout]} id result]
    (let [msg {:jsonrpc "2.0" :id id :result result}]
-     (async/>!! stdout msg)
-     (timbre/debug (format "[%s] responding to %s with result %s" name id result)))))
+     (async/>!! stdout msg))))
 
 (defn shutdown-client [client]
   (when (request client "shutdown")

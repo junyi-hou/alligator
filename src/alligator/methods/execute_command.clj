@@ -1,9 +1,9 @@
-(ns alligator.methods.execute-command
+(ns alligator.methods.execute_command
   (:require
    [alligator.methods :as methods]
    [alligator.multiplexer :as mux]
    [clojure.core.async :as async]
-   [taoensso.timbre :refer [warn]]))
+   [taoensso.timbre :refer [warn debug]]))
 
 (defn ^:private error-response
   [id data]
@@ -22,12 +22,16 @@
             servers (mux/get-servers-for-command multiplexer command-to-run)
             n-servers (count servers)]
         (cond
-          (= n-servers 0) (do
-                            (async/>! (:server-output multiplexer) (error-response (:id message) params))
+          (= n-servers 0) (let [resp (error-response (:id message) params)]
+                            (debug (format "[Router->Client] %s" resp))
+                            (async/>! (:server-output multiplexer) resp)
                             (warn (format "[Router] No server is capable of running %s" command-to-run)))
-          (= n-servers 1) (let [server (mux/get-server-by-name multiplexer (first servers))]
+          (= n-servers 1) (let [server-name (first servers)
+                                server (mux/get-server-by-name multiplexer server-name)]
+                            (debug (format "[Router->%s] %s" server-name message))
                             (async/>! (:stdin server) message))
-          :else (do
-                  (async/>! (:server-output multiplexer) (error-response (:id message) params))
+          :else (let [resp (error-response (:id message) params)]
+                  (debug (format "[Router->Client] %s" resp))
+                  (async/>! (:server-output multiplexer) resp)
                   (warn (format "[Router] More than 1 server is capable of running %s" command-to-run)))))
       (recur))))

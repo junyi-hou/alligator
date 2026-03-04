@@ -3,7 +3,8 @@
   (:require
    [alligator.methods :as methods]
    [alligator.multiplexer :as mux]
-   [clojure.core.async :as async]))
+   [clojure.core.async :as async]
+   [taoensso.timbre :refer [debug]]))
 
 ;; TODO:
 ;; 1/ we should expose version
@@ -39,6 +40,7 @@
     (async/go-loop []
       (when-let [msg (async/<! diagnostics-chan)]
         (when-let [result (process-server-diagnostics msg diagnostics-cache)]
+          (debug (format "[Router->Client] %s" result))
           (async/>! output-chan result))
         (recur)))))
 
@@ -48,6 +50,7 @@
     (async/go-loop []
       (when-let [message (async/<! client-message-chan)]
         (doseq [server (mux/list-servers multiplexer)]
+          (debug (format "[Router->%s] %s" (:name server) message))
           (async/>! (:stdin server) message))
         (let [uri (get-in message [:params :textDocument :uri])]
           (swap! diagnostics-cache dissoc uri))
