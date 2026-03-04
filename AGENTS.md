@@ -36,11 +36,6 @@ We use `clojure-lsp` for linting and formatting.
 ### Building
 We use `tools.build` for building the project.
 
-- **Build uberjar:**
-  ```bash
-  clojure -T:build uber
-  ```
-
 - **Build binary:**
   ```bash
   clojure -T:build binary
