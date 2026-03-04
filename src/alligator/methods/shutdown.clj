@@ -3,7 +3,8 @@
   (:require
    [alligator.methods :as methods]
    [alligator.multiplexer :as mux]
-   [clojure.core.async :as async]))
+   [clojure.core.async :as async]
+   [taoensso.timbre :refer [debug]]))
 
 (defmethod methods/process-server-message "shutdown"
   [_ input-chan output-chan multiplexer]
@@ -14,6 +15,7 @@
           ;; only sends shutdown message when all servers replied
           (if (>= (count new-shutdown-servers) (count (mux/list-servers multiplexer)))
             (do
+              (debug (format "[Router->Client] %s" message))
               (async/>! output-chan message)
               (async/close! exit-chan))
             (recur new-shutdown-servers)))
