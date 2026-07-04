@@ -1,4 +1,4 @@
-(ns alligator.mock.external.multiservers2-test
+(ns alligator.mock.clojure-codebook.multiservers2-test
   (:require
    [alligator.methods :as methods]
    [alligator.test-utils :as utils]
@@ -22,7 +22,7 @@
         (utils/notify client "initialized")))
 
     (let [file-uri "file:///tmp/test.clj"]
-      (utils/notify client "textDocument/didOpen" {:text-document {:uri file-uri :text "(ns wrong-name \"thi is a typo\")" :version 1}})
+      (utils/notify client "textDocument/didOpen" {:text-document {:uri file-uri :language-id "clojure" :text "(ns wrong-name \"thi is a typo\")" :version 1}})
       (testing "Getting diagnostics from both servers"
         ;; We expect two diagnostic notifications (one from each server or aggregated)
         ;; Depending on implementation, we might get one notification with aggregated diagnostics
