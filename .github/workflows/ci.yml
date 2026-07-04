@@ -12,17 +12,17 @@ jobs:
   unit-test:
     strategy:
       matrix:
-        os: ["macos-latest", "ubuntu-latest"]
+        os: [ "macos-latest", "ubuntu-latest" ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up environment
         uses: actions/setup-java@v5
         with:
-          distribution: 'graalvm'
-          java-version: '21'
+          distribution: "graalvm"
+          java-version: "21"
 
       - name: Install direnv
         run: |
@@ -36,18 +36,6 @@ jobs:
             brew install direnv
           fi
 
-      - name: Install rlwrap
-        run: |
-          if command -v rlwrap >/dev/null 2>&1; then
-            echo "rlwrap already installed"
-            exit 0
-          fi
-          if [ "$RUNNER_OS" == "Linux" ]; then
-            sudo apt-get update && sudo apt-get install -y rlwrap
-          elif [ "$RUNNER_OS" == "macOS" ]; then
-            brew install rlwrap
-          fi
-
       - name: Load environment variables
         run: |
           direnv allow .
@@ -56,14 +44,49 @@ jobs:
       - name: Run unit tests
         run: clojure -M:test -m cognitect.test-runner -e :mock
 
+  mock-test:
+    strategy:
+      matrix:
+        os: [ "macos-latest", "ubuntu-latest" ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v6
+
+      - name: Set up environment
+        uses: actions/setup-java@v5
+        with:
+          distribution: "graalvm"
+          java-version: "21"
+
+      - name: Install direnv
+        run: |
+          if command -v direnv >/dev/null 2>&1; then
+            echo "direnv already installed"
+            exit 0
+          fi
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y direnv
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install direnv
+          fi
+
+      - name: Load environment variables
+        run: |
+          direnv allow .
+          direnv export gha > "$GITHUB_ENV"
+
       - name: Run basic mock test
         run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/basic/
 
       - name: Run multiserver mock test
-        run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/multiservers/
+        run: clojure -M:test -m cognitect.test-runner -d
+          test/alligator/mock/multiservers/
 
       - name: Run diagnostic mock test
-        run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/diagnostics/
+        run: clojure -M:test -m cognitect.test-runner -d
+          test/alligator/mock/diagnostics/
 
       - name: Run code-action mock test
-        run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/code_actions/
+        run: clojure -M:test -m cognitect.test-runner -d
+          test/alligator/mock/code_actions/
