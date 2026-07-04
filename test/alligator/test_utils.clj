@@ -16,12 +16,11 @@
    (let [id @next-id
          msg {:jsonrpc "2.0" :id id :method method :params params}
          response-chan (async/promise-chan)]
-     (async/>!! stdout msg)
-
-     (swap! pending-requests assoc id response-chan)
-     (swap! next-id inc)
-     (let [timeout-chan (async/timeout 5000)
-           [val port] (async/alts!! [response-chan timeout-chan])]
+      (swap! pending-requests assoc id response-chan)
+      (swap! next-id inc)
+      (async/>!! stdout msg)
+      (let [timeout-chan (async/timeout 30000)
+            [val port] (async/alts!! [response-chan timeout-chan])]
        (if (= port timeout-chan)
          (do
            (timbre/error (format "[%s] request %s (id: %s) timed out" name method id))
@@ -135,11 +134,15 @@
 (defn start-servers-and-client
   ([server-command] (start-servers-and-client server-command nil))
   ([server-command client-request-handlers]
-   (let [alligator-args (into ["clj" "-M:test" "-m" "alligator.core" "--debug"] server-command)
+   (let [alligator-args (into ["clojure" "-M:test" "-m" "alligator.core" "--debug"] server-command)
          process (apply proc/start {:err :inherit} alligator-args)
          alligator-stdout (proc/stdout process)
          alligator-stdin (proc/stdin process)
          client (start-mock-client alligator-stdout alligator-stdin client-request-handlers)]
+     ;; CI runners (especially macOS) are slow to start the alligator JVM;
+     ;; give it a moment before the first request is sent.
+     (when (= "true" (System/getenv "CI"))
+       (Thread/sleep 5000))
      {:client client
       :server process})))
 
