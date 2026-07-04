@@ -9,12 +9,12 @@
 (methods/load-handlers!)
 
 (deftest ^:mock basic-integration-test
-  (let [{:keys [client] :as test-objects} (utils/start-servers-and-client ["--" "clj -M:test -m alligator.mock.basic.server" "--default"])]
+  (let [{:keys [client] :as test-objects} (utils/start-servers-and-client ["--" "clojure -M:test -m alligator.mock.basic.server" "--default"])]
 
     ;; 1. Initialize Handshake
     (testing "Handshake"
       (let [resp (utils/request client "initialize" {:capabilities {} :root-uri "file:///"})]
-        (is (= "Alligator (clj)" (get-in resp [:result :server-info :name])))
+        (is (= "Alligator (clojure)" (get-in resp [:result :server-info :name])))
         (utils/notify client "initialized")))
 
     ;; 2. Completion Request

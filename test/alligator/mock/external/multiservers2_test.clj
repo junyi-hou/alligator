@@ -1,4 +1,4 @@
-(ns alligator.mock.multiservers.multiservers2-test
+(ns alligator.mock.external.multiservers2-test
   (:require
    [alligator.methods :as methods]
    [alligator.test-utils :as utils]

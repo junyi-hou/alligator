@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -23,8 +26,27 @@ jobs:
 
       - name: Install direnv
         run: |
-          curl -sfL https://direnv.net/install.sh | bash
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          if command -v direnv >/dev/null 2>&1; then
+            echo "direnv already installed"
+            exit 0
+          fi
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y direnv
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install direnv
+          fi
+
+      - name: Install rlwrap
+        run: |
+          if command -v rlwrap >/dev/null 2>&1; then
+            echo "rlwrap already installed"
+            exit 0
+          fi
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y rlwrap
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install rlwrap
+          fi
 
       - name: Load environment variables
         run: |
@@ -34,17 +56,14 @@ jobs:
       - name: Run unit tests
         run: clojure -M:test -m cognitect.test-runner -e :mock
 
-      # encounter strange race condition when running those mock tests on github
-      # disable them and do mock tests locally for now
+      - name: Run basic mock test
+        run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/basic/
 
-      # - name: Run basic mock test
-      #   run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/basic/
+      - name: Run multiserver mock test
+        run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/multiservers/
 
-      # - name: Run multiserver mock test
-      #   run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/multiservers/
+      - name: Run diagnostic mock test
+        run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/diagnostics/
 
-      # - name: Run diagnostic mock test
-      #   run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/diagnostics/
-
-      # - name: Run code-action mock test
-      #   run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/code-actions/
+      - name: Run code-action mock test
+        run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/code_actions/
