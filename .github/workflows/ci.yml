@@ -76,17 +76,109 @@ jobs:
           direnv allow .
           direnv export gha > "$GITHUB_ENV"
 
-      - name: Run basic mock test
-        run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/basic/
+      - name: Run mock tests
+        run: |
+          clojure -M:test -m cognitect.test-runner \
+            -d test/alligator/mock/basic/ \
+            -d test/alligator/mock/multiservers/ \
+            -d test/alligator/mock/diagnostics/ \
+            -d test/alligator/mock/code_actions/ \
+            -d test/alligator/mock/clojure_lsp/
 
-      - name: Run multiserver mock test
-        run: clojure -M:test -m cognitect.test-runner -d
-          test/alligator/mock/multiservers/
+  mock-test-clojure-codebook:
+    strategy:
+      matrix:
+        os: [ "macos-latest", "ubuntu-latest" ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v6
 
-      - name: Run diagnostic mock test
-        run: clojure -M:test -m cognitect.test-runner -d
-          test/alligator/mock/diagnostics/
+      - name: Set up environment
+        uses: actions/setup-java@v5
+        with:
+          distribution: "graalvm"
+          java-version: "21"
 
-      - name: Run code-action mock test
-        run: clojure -M:test -m cognitect.test-runner -d
-          test/alligator/mock/code_actions/
+      - name: Install direnv
+        run: |
+          if command -v direnv >/dev/null 2>&1; then
+            echo "direnv already installed"
+            exit 0
+          fi
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y direnv
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install direnv
+          fi
+
+      - name: Load environment variables
+        run: |
+          direnv allow .
+          direnv export gha > "$GITHUB_ENV"
+
+      - name: Install codebook-lsp
+        run: |
+          VERSION="0.3.41"
+          case "$RUNNER_OS" in
+            Linux)
+              case "$(uname -m)" in
+                x86_64) ASSET="codebook-lsp-x86_64-unknown-linux-musl.tar.gz" ;;
+                aarch64) ASSET="codebook-lsp-aarch64-unknown-linux-musl.tar.gz" ;;
+                *) echo "Unsupported architecture"; exit 1 ;;
+              esac
+              ;;
+            macOS)
+              case "$(uname -m)" in
+                x86_64) ASSET="codebook-lsp-x86_64-apple-darwin.tar.gz" ;;
+                arm64) ASSET="codebook-lsp-aarch64-apple-darwin.tar.gz" ;;
+                *) echo "Unsupported architecture"; exit 1 ;;
+              esac
+              ;;
+            *) echo "Unsupported OS"; exit 1 ;;
+          esac
+          mkdir -p .tools/bin
+          curl -fsSL "https://github.com/blopker/codebook/releases/download/v${VERSION}/${ASSET}" -o /tmp/codebook-lsp.tar.gz
+          tar -xzf /tmp/codebook-lsp.tar.gz -C .tools/bin
+          echo "$PWD/.tools/bin" >> "$GITHUB_PATH"
+
+      - name: Run clojure-lsp + codebook-lsp mock test
+        run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/clojure_codebook/
+
+  mock-test-ruff-ty:
+    strategy:
+      matrix:
+        os: [ "macos-latest", "ubuntu-latest" ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v6
+
+      - name: Set up environment
+        uses: actions/setup-java@v5
+        with:
+          distribution: "graalvm"
+          java-version: "21"
+
+      - name: Install direnv
+        run: |
+          if command -v direnv >/dev/null 2>&1; then
+            echo "direnv already installed"
+            exit 0
+          fi
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y direnv
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install direnv
+          fi
+
+      - name: Load environment variables
+        run: |
+          direnv allow .
+          direnv export gha > "$GITHUB_ENV"
+
+      - name: Install ruff and ty
+        run: uv pip install ruff ty
+
+      - name: Run ruff + ty mock test
+        run: clojure -M:test -m cognitect.test-runner -d test/alligator/mock/ruff_ty/
